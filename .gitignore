@@ -3,3 +3,4 @@ cache_prices/
 __pycache__/
 *.parquet
 .DS_Store 
+.DS_Store
