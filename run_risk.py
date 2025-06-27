@@ -1,0 +1,397 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[ ]:
+
+
+# File: run_risk.py
+
+import argparse
+import yaml
+from typing import Optional, Dict, Union, List
+import pandas as pd
+
+from risk_summary import (
+    get_detailed_stock_factor_profile,
+    get_stock_risk_profile
+)
+from run_portfolio_risk import (
+    latest_price,
+    load_portfolio_config,
+    display_portfolio_config,
+    standardize_portfolio_input,
+    display_portfolio_summary,
+    evaluate_portfolio_beta_limits,
+    evaluate_portfolio_risk_limits,
+)
+from portfolio_risk import build_portfolio_view
+from portfolio_optimizer import (
+    run_what_if_scenario,
+    print_what_if_report,
+    run_min_var,
+    print_min_var_report,
+    run_max_return_portfolio,
+    print_max_return_report,
+)  
+from risk_helpers import (
+    calc_max_factor_betas
+)
+
+def run_portfolio(filepath: str):
+    """
+    High-level “one-click” entry-point for a full portfolio risk run.
+
+    It ties together **all** of the moving pieces you’ve built so far:
+
+        1.  Loads the portfolio YAML file (positions, dates, factor proxies).
+        2.  Loads the firm-wide risk-limits YAML.
+        3.  Standardises the raw position inputs into weights, then calls
+            `build_portfolio_view` to produce the master `summary` dictionary
+            (returns, vol, correlation, factor betas, variance decomposition, …).
+        4.  Pretty-prints the standard risk summary via `display_portfolio_summary`.
+        5.  Derives *dynamic* max-beta limits:
+                • looks back over the analysis window,
+                • finds worst 1-month drawdowns for every unique factor proxy,
+                • converts those losses into a per-factor β ceiling
+                  using the global `max_single_factor_loss`.
+        6.  Runs two rule-checkers
+                • `evaluate_portfolio_risk_limits`   →   Vol, concentration, factor %
+                • `evaluate_portfolio_beta_limits`   →   Actual β vs. max β
+        7.  Prints both tables in a compact “PASS/FAIL” console report.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the *portfolio* YAML ( **not** the risk-limits file ).
+        The function expects the YAML schema you have been using
+        (`start_date`, `end_date`, `portfolio_input`, `stock_factor_proxies`, …).
+
+    Side-effects
+    ------------
+    • Prints a formatted risk report to stdout.
+    • Does **not** return anything; everything is handled inline.
+      (If you need the raw DataFrames, simply return `summary`, `df_risk`,
+      and `df_beta` at the end.)
+
+    Example
+    -------
+    >>> run_portfolio("portfolio.yaml")
+    === Target Allocations ===
+    …                                 # summary table
+    === Portfolio Risk Limit Checks ===
+    Volatility:             21.65%  ≤ 40.00%     → PASS
+    …
+    === Beta Exposure Checks ===
+    market       β = 0.74  ≤ 0.80  → PASS
+    …
+    """
+    # ─── 1. Load YAML Inputs ─────────────────────────────────
+     
+    config = load_portfolio_config(filepath)
+        
+    with open("risk_limits.yaml", "r") as f:
+        risk_config = yaml.safe_load(f)
+
+    weights = standardize_portfolio_input(config["portfolio_input"], latest_price)["weights"]
+    summary = build_portfolio_view(
+        weights,
+        config["start_date"],
+        config["end_date"],
+        config.get("expected_returns"),
+        config.get("stock_factor_proxies")
+    )
+
+    # ─── 2. Display Summary ─────────────────────────────────
+    display_portfolio_config(config)
+    display_portfolio_summary(summary)
+
+    # ─── 2b. Top Stock-Level Factor Variance Contributors ───────────────
+    wfv = summary["weighted_factor_var"]
+    total_var = summary["variance_decomposition"]["portfolio_variance"]
+    
+    stock_contrib = wfv.sum(axis=1).sort_values(ascending=False).head(10)
+    stock_contrib_pct = stock_contrib / total_var
+    
+    print("\n=== Top 10 Stock-Level Factor Contributions to Portfolio Variance ===")
+    print(stock_contrib_pct.to_frame("% of Total Var").to_string(formatters={
+        "% of Total Var": "{:.1%}".format
+    }))
+    
+    # ─── 3. Compute Beta Limits ─────────────────────────────
+    max_betas, max_betas_by_proxy = calc_max_factor_betas(
+        portfolio_yaml = filepath,
+        risk_yaml      = "risk_limits.yaml",
+        lookback_years = 10,
+        echo           = True,     # show helper tables
+    )
+
+    # ─── 4. Evaluate Portfolio Risk Rules ───────────────────
+    print("\n=== Portfolio Risk Limit Checks ===")
+    df_risk = evaluate_portfolio_risk_limits(
+        summary,
+        risk_config["portfolio_limits"],
+        risk_config["concentration_limits"],
+        risk_config["variance_limits"]
+    )
+    for _, row in df_risk.iterrows():
+        status = "→ PASS" if row["Pass"] else "→ FAIL"
+        print(f"{row['Metric']:<22} {row['Actual']:.2%}  ≤ {row['Limit']:.2%}  {status}")
+
+    # ─── 5. Evaluate Beta Limits ────────────────────────────
+    print("\n=== Beta Exposure Checks ===")
+    df_beta = evaluate_portfolio_beta_limits(
+        portfolio_factor_betas = summary["portfolio_factor_betas"],
+        max_betas              = max_betas,
+        proxy_betas            = summary["industry_variance"].get("per_industry_group_beta"),
+        max_proxy_betas        = max_betas_by_proxy
+    )
+    
+    for factor, row in df_beta.iterrows():
+        status = "→ PASS" if row["pass"] else "→ FAIL"
+        print(f"{factor:<20} β = {row['portfolio_beta']:+.2f}  ≤ {row['max_allowed_beta']:.2f}  {status}")
+
+# ─────────────────────────────────────────────────────────────────────
+
+def run_what_if(
+    filepath: str, 
+    scenario_yaml: Optional[str] = None, 
+    delta: Optional[str] = None
+):
+    """
+    Execute a single *what-if* scenario on an existing portfolio.
+
+    The function loads the base portfolio & firm-wide risk limits,
+    applies either a YAML-defined scenario **or** an inline `delta`
+    string, and prints a full before/after risk report.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the primary portfolio YAML file (same schema as
+        ``run_portfolio``).
+    scenario_yaml : str, optional
+        Path to a YAML file that contains a ``new_weights`` or ``delta``
+        section (see ``helpers_input.parse_delta`` for precedence rules).
+        If supplied, this file overrides any `delta` string.
+    delta : str, optional
+        Comma-separated inline weight shifts, e.g.
+        ``"TW:+500bp,PCTY:-200bp"``.  Ignored when `scenario_yaml`
+        contains a ``new_weights`` block.
+
+    Notes
+    -----
+    ▸ Does *not* return anything; all output is printed via
+      ``print_what_if_report``.  
+    ▸ Raises ``ValueError`` if neither YAML nor `delta`
+      provide a valid change set.
+    """
+    # --- load configs ------------------------------------------------------
+    config = load_portfolio_config(filepath)
+    with open("risk_limits.yaml", "r") as f:
+        risk_config = yaml.safe_load(f)
+
+    weights = standardize_portfolio_input(config["portfolio_input"], latest_price)["weights"]
+
+    # parse CLI delta string
+    shift_dict = None
+    if delta:
+        shift_dict = {k.strip(): v.strip() for k, v in (pair.split(":") for pair in delta.split(","))}
+
+    # --- run the engine ----------------------------------------------------
+    summary, risk_new, beta_new, cmp_risk, cmp_beta = run_what_if_scenario(
+        base_weights = weights,
+        config       = config,
+        risk_config  = risk_config,
+        proxies      = config["stock_factor_proxies"],
+        scenario_yaml = scenario_yaml,
+        shift_dict   = shift_dict,
+    )
+    
+    # split beta table between factors and industry
+    beta_f_new = beta_new[~beta_new.index.str.startswith("industry_proxy::")]
+    beta_p_new = beta_new[ beta_new.index.str.startswith("industry_proxy::")].copy()
+    beta_p_new.index = beta_p_new.index.str.replace("industry_proxy::", "")
+    
+    # Print report
+    print_what_if_report(
+        summary_new=summary,
+        risk_new=risk_new,
+        beta_f_new=beta_f_new,
+        beta_p_new=beta_p_new,
+        cmp_risk=cmp_risk,
+        cmp_beta=cmp_beta,
+    )
+
+def run_min_variance(filepath: str):
+    """
+    Run the minimum-variance optimiser under current risk limits.
+
+    Steps
+    -----
+    1. Load portfolio & risk-limit YAML files.
+    2. Convert raw position input into normalised weights.
+    3. Call :pyfunc:`portfolio_optimizer.run_min_var` to solve for the
+       lowest-variance weight vector that satisfies **all** firm-wide
+       constraints.
+    4. Pretty-print the resulting weights plus risk & beta check tables
+       via :pyfunc:`portfolio_optimizer.print_min_var_report`.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the portfolio YAML file (``start_date``, ``end_date``,
+        ``portfolio_input``, etc.).
+
+    Raises
+    ------
+    ValueError
+        Propagated from the optimiser if the constraints are infeasible.
+
+    Side Effects
+    ------------
+    Prints the optimised weight allocation and PASS/FAIL tables to
+    stdout; nothing is returned.
+    """
+    # --- load configs ------------------------------------------------------
+    config = load_portfolio_config(filepath)
+    with open("risk_limits.yaml", "r") as f:
+        risk_config = yaml.safe_load(f)
+
+    weights = standardize_portfolio_input(config["portfolio_input"], latest_price)["weights"]
+
+    # --- run the engine ----------------------------------------------------
+    w, r, b = run_min_var(
+        base_weights = weights,
+        config       = config,
+        risk_config  = risk_config,
+        proxies      = config["stock_factor_proxies"],
+    )
+    print_min_var_report(weights=w, risk_tbl=r, beta_tbl=b)
+
+def run_max_return(filepath: str):
+    """
+    Solve for the highest-return portfolio that still passes all
+    volatility, concentration, and beta limits.
+
+    Workflow
+    --------
+    * Parse the portfolio and risk-limit YAMLs.
+    * Standardise the raw positions → weights.
+    * Call :pyfunc:`portfolio_optimizer.run_max_return_portfolio` to
+      perform a convex QP that maximises expected return subject to:
+        – portfolio σ cap  
+        – single-name weight cap  
+        – factor & industry beta caps
+    * Print the final weight vector and the associated risk / beta
+      check tables via :pyfunc:`portfolio_optimizer.print_max_return_report`.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the portfolio YAML file.
+
+    Notes
+    -----
+    * Uses the **expected_returns** section inside the portfolio YAML for
+      the objective function.  Missing tickers default to 0 % expected
+      return.
+    * All output is written to stdout; the function does not return
+      anything.
+    """
+    # --- load configs ------------------------------------------------------
+    config = load_portfolio_config(filepath)
+    with open("risk_limits.yaml", "r") as f:
+        risk_config = yaml.safe_load(f)
+
+    weights = standardize_portfolio_input(config["portfolio_input"], latest_price)["weights"]
+    
+    # --- run the engine ----------------------------------------------------
+    w, summary, r, f_b, p_b = run_max_return_portfolio(
+        weights     = weights,
+        config      = config,
+        risk_config = risk_config,
+        proxies     = config["stock_factor_proxies"],
+    )
+    print_max_return_report(weights=w, risk_tbl=r, df_factors=f_b, df_proxies=p_b)
+    # ─────────────────────────────────────────────────────────────────────
+
+def run_stock(
+    ticker: str,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    factor_proxies: Optional[Dict[str, Union[str, List[str]]]] = None
+):
+    """
+    Runs stock risk diagnostics. If factor_proxies are provided, runs detailed multi-factor profile.
+    Otherwise, falls back to simple regression vs. market benchmark.
+
+    Args:
+        ticker (str): Stock symbol.
+        start (Optional[str]): Start date in YYYY-MM-DD format. Defaults to 5 years ago.
+        end (Optional[str]): End date in YYYY-MM-DD format. Defaults to today.
+        factor_proxies (Optional[Dict[str, Union[str, List[str]]]]): Optional factor mapping.
+    """
+    today = pd.Timestamp.today().normalize()
+    start = pd.to_datetime(start) if start else today - pd.DateOffset(years=5)
+    end   = pd.to_datetime(end)   if end   else today
+
+    if factor_proxies is None:
+        result = get_stock_risk_profile(
+            ticker,
+            start_date=start,
+            end_date=end,
+            benchmark="SPY"
+        )
+        print("=== Volatility Metrics ===")
+        print(result["vol_metrics"])
+
+        print("\n=== Market Regression (SPY) ===")
+        print(result["risk_metrics"])
+
+
+    else:
+        profile = get_detailed_stock_factor_profile(ticker, start, end, factor_proxies)
+
+        print("=== Volatility ===")
+        print(profile["vol_metrics"])
+
+        print("\n=== Market Regression ===")
+        print(profile["regression_metrics"])
+
+        print("\n=== Factor Summary ===")
+        print(profile["factor_summary"])
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--portfolio", type=str, help="Path to YAML portfolio file")
+    parser.add_argument("--stock", type=str, help="Ticker symbol")
+    parser.add_argument("--start", type=str, help="Start date (YYYY-MM-DD)")
+    parser.add_argument("--end", type=str, help="End date (YYYY-MM-DD)")
+    parser.add_argument("--whatif", action="store_true", help="Run what-if scenario")
+    parser.add_argument("--minvar", action="store_true", help="Run min-variance optimization")
+    parser.add_argument("--maxreturn", action="store_true", help="Run max-return optimization")
+    parser.add_argument("--scenario", type=str, help="Path to what-if scenario YAML file")
+    parser.add_argument("--delta", type=str, help='Inline weight shifts, e.g. "TW:+500bp,PCTY:-200bp"')
+    args = parser.parse_args()
+
+    if args.portfolio:
+        if args.whatif:
+            run_what_if(args.portfolio, scenario_yaml=args.scenario, delta=args.delta)        
+        elif args.minvar:
+            run_min_variance(args.portfolio)
+        elif args.maxreturn:
+            run_max_return(args.portfolio)
+        else:
+            run_portfolio(args.portfolio)
+
+    elif args.stock and args.start and args.end:
+        run_stock(args.stock, args.start, args.end)
+    else:
+        parser.print_help()
+
+
+# In[ ]:
+
+
+
+

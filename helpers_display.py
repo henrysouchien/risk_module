@@ -1,0 +1,157 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[3]:
+
+
+import pandas as pd   
+
+
+# In[4]:
+
+
+# ─── File: helpers_display.py ──────────────────────────────────────────
+
+EXCLUDE_FACTORS = {"industry"}          # extend if you need to hide more later
+
+def _drop_factors(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove presentation-only factor rows (case / whitespace agnostic).
+    """
+    if df.empty:
+        return df
+    idx_mask = (
+        df.index.to_series()
+          .str.strip()
+          .str.lower()
+          .isin({f.lower() for f in EXCLUDE_FACTORS})
+    )
+    return df.loc[~idx_mask]
+
+
+# In[5]:
+
+
+# ─── File: helpers_display.py ──────────────────────────────────────────
+
+def _print_single_portfolio(risk_df, beta_df, title: str = "What-if") -> None:
+    """
+    Pretty-print risk-limit and factor-beta tables for a *single* portfolio
+    (new weights or what-if scenario).
+
+    Parameters
+    ----------
+    risk_df : pd.DataFrame
+        Output from `evaluate_portfolio_risk_limits` (or risk_new in run_what_if)
+        with columns ["Metric", "Actual", "Limit", "Pass"].
+    beta_df : pd.DataFrame
+        Output from `evaluate_portfolio_beta_limits` with columns
+        ["portfolio_beta", "max_allowed_beta", "pass", "buffer"] and the
+        factor name as index.
+    title : str, default "What-if"
+        Heading prefix used in the console output.
+
+    Notes
+    -----
+    • Percentages (`Actual`, `Limit`) are rendered with **one-decimal** precision.
+    • Betas, max-betas, and buffer columns are rendered to **four** decimals.
+    • Pass/fail booleans are mapped to the strings ``PASS`` / ``FAIL``.
+    • Prints directly to stdout; returns None.
+    """
+    pct = lambda x: f"{x:.1%}"                # 1-decimal percentage
+
+    print(f"\n📐  {title} Risk Checks\n")
+    print(
+        risk_df.to_string(
+            index=False,
+            formatters={"Actual": pct, "Limit": pct}
+        )
+    )
+
+    print(f"\n📊  {title} Factor Betas\n")
+    beta_df = _drop_factors(beta_df)
+    print(
+        beta_df.to_string(
+            formatters={
+                "portfolio_beta":   "{:.4f}".format,
+                "max_allowed_beta": "{:.4f}".format,
+                "buffer":           "{:.4f}".format,
+                "pass":             lambda x: "PASS" if x else "FAIL",
+            }
+        )
+    )
+
+
+# In[6]:
+
+
+# ─── File: helpers_display.py ──────────────────────────────────────────
+
+import pandas as pd
+
+def _fmt_pct(x: float) -> str:
+    return f"{x:.1%}"
+
+# ────────────────────────────────────────────────────────────────────
+def compare_risk_tables(old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
+    """Side-by-side diff for the risk-limit checker."""
+    left  = old.rename(columns={"Actual": "Old",  "Pass": "Old Pass"})
+    right = new.rename(columns={"Actual": "New",  "Pass": "New Pass"})
+    out   = (
+        left.merge(right, on=["Metric", "Limit"], how="outer", sort=False)
+            .assign(Δ=lambda d: d["New"] - d["Old"])
+            .loc[:, ["Metric", "Old", "New", "Δ", "Limit", "Old Pass", "New Pass"]]
+    )
+    return out
+
+# ────────────────────────────────────────────────────────────────────
+def compare_beta_tables(old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
+    """
+    Diff for the factor-beta checker.
+      • Accepts either camel- or snake-case column names.
+      • Fills missing Max-Beta / Pass columns with sensible defaults.
+      • Index must be Factor for both inputs.
+    """
+    def _clean(df: pd.DataFrame, tag: str) -> pd.DataFrame:
+        colmap = {
+            "portfolio_beta": "Beta",
+            "max_allowed_beta": "Max Beta",
+            "max_beta": "Max Beta",
+            "pass": "Pass",
+        }
+        df = df.rename(columns=colmap)
+        if "Max Beta" not in df.columns:
+            df["Max Beta"] = 0.0
+        if "Pass" not in df.columns:
+            df["Pass"] = False
+        df = df.rename(columns={"Beta": tag, "Pass": f"{tag} Pass"})
+        return df[[tag, "Max Beta", f"{tag} Pass"]]
+
+    left  = _clean(old.copy(), "Old")
+    right = _clean(new.copy(), "New")
+
+    merged = left.merge(
+        right,
+        left_index=True,
+        right_index=True,
+        how="outer",
+        sort=False
+    )
+
+    # unify the duplicated Max Beta columns
+    merged["Max Beta"] = merged["Max Beta_x"].combine_first(merged["Max Beta_y"])
+    merged = merged.drop(columns=["Max Beta_x", "Max Beta_y"])
+
+    out = (
+        merged
+        .assign(Δ=lambda d: d["New"] - d["Old"])
+        .loc[:, ["Old", "New", "Δ", "Max Beta", "Old Pass", "New Pass"]]
+    )
+    return out
+
+
+# In[ ]:
+
+
+
+
