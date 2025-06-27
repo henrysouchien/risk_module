@@ -1,46 +1,118 @@
-Stock Risk Engine
+# Risk Module 🧠
 
-A modular Python framework for calculating stock-level and portfolio-level risk metrics, factor exposures, and variance decomposition.
+A comprehensive portfolio and single-stock risk analysis system that provides multi-factor regression diagnostics, risk decomposition, and portfolio optimization capabilities.
 
-⸻
+## 🚀 Features
 
-Contents
-	•	data_loader.py – Pulls monthly price data from FMP API
-	•	factor_utils.py – Factor construction, regressions, variance calcs
-	•	portfolio_risk.py – Volatility, risk contributions, portfolio stats
-	•	risk_summary.py – Single-stock and factor profile calculators
-	•	run_single_stock_profile.py – Test script for stock-level analysis
-	•	run_portfolio_risk.py – Main script to run portfolio risk diagnostics
-	•	inputs.yaml – User-editable config for expected returns and factor proxies
+- **Multi-Factor Risk Analysis**: Comprehensive factor modeling with market, momentum, value, and industry factors
+- **Portfolio Risk Decomposition**: Detailed variance attribution and risk contribution analysis
+- **Single-Stock Risk Profiles**: Individual stock factor exposure and risk metrics
+- **Data Caching**: Intelligent caching system for efficient data retrieval from Financial Modeling Prep (FMP)
+- **YAML Configuration**: Flexible portfolio and risk limit configuration
+- **Risk Limit Monitoring**: Automated risk limit checking and alerts
 
-⸻
+## 📊 What It Does
 
-Setup Instructions
+This risk module provides:
 
-1. Install Requirements
+1. **Portfolio Analysis**: Complete risk decomposition including volatility, factor exposures, and variance attribution
+2. **Single-Stock Diagnostics**: Detailed factor regression analysis for individual securities
+3. **Risk Monitoring**: Automated checking against configurable risk limits
+4. **Data Management**: Efficient caching and retrieval of market data from FMP API
 
-pip install pandas numpy statsmodels pyyaml requests
+## 🏗️ Architecture
 
-2. API Access
+The system is built with a modular, layered architecture:
 
-Register at FinancialModelingPrep and set your API key inside data_loader.py:
+```
+risk_module/
+├── data_loader.py          # Data fetching and caching layer
+├── factor_utils.py         # Factor analysis and regression utilities
+├── portfolio_risk.py       # Portfolio-level risk calculations
+├── risk_summary.py         # Single-stock risk profiling
+├── run_portfolio_risk.py   # Main portfolio analysis execution
+├── run_risk.py            # Risk analysis runner
+├── portfolio.yaml         # Portfolio configuration
+├── risk_limits.yaml       # Risk limit definitions
+└── helpers_*.py           # Utility modules
+```
 
-API_KEY = "<your_key_here>"
+### Core Components
 
+- **Data Layer** (`data_loader.py`): FMP API integration with intelligent caching
+- **Factor Utils** (`factor_utils.py`): Multi-factor regression and volatility calculations
+- **Portfolio Engine** (`portfolio_risk.py`): Portfolio risk decomposition and analysis
+- **Stock Profiler** (`risk_summary.py`): Individual stock factor exposure analysis
 
-⸻
+## 🛠️ Installation
 
-Input Format – inputs.yaml
+### Prerequisites
 
-A structured YAML file to store expected returns and factor mappings.
+- Python 3.8+
+- Financial Modeling Prep API key
+
+### Setup
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/henrysouchien/risk_module.git
+   cd risk_module
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   pip install pandas numpy statsmodels requests python-dotenv pyarrow
+   ```
+
+3. **Configure API key**:
+   Create a `.env` file in the project root:
+   ```bash
+   FMP_API_KEY=your_fmp_api_key_here
+   ```
+
+## 📖 Usage
+
+### Portfolio Analysis
+
+Run a complete portfolio risk analysis:
+
+```bash
+python run_portfolio_risk.py
+```
+
+This will:
+- Load portfolio configuration from `portfolio.yaml`
+- Fetch market data for all securities
+- Perform multi-factor regression analysis
+- Calculate portfolio risk metrics
+- Generate comprehensive risk report
+
+### Single Stock Analysis
+
+Analyze individual stock risk profile:
+
+```bash
+python run_single_stock_profile.py
+```
+
+### Configuration
+
+#### Portfolio Configuration (`portfolio.yaml`)
+
+```yaml
+start_date: "2019-05-31"
+end_date: "2024-03-31"
+
+portfolio_input:
+  TW:   {weight: 0.15}
+  MSCI: {weight: 0.15}
+  NVDA: {weight: 0.17}
+  # ... more positions
 
 expected_returns:
   TW: 0.15
   MSCI: 0.16
-  NVDA: 0.20
-  PCTY: 0.17
-  AT.L: 0.25
-  SHV: 0.02
+  # ... expected returns for each position
 
 stock_factor_proxies:
   TW:
@@ -49,68 +121,146 @@ stock_factor_proxies:
     value: IWD
     industry: KCE
     subindustry: [TW, MSCI, NVDA]
-  MSCI:
-    market: SPY
-    momentum: MTUM
-    value: IWD
-    industry: KCE
-    subindustry: [TW, MSCI, NVDA]
-  NVDA:
-    market: SPY
-    momentum: MTUM
-    value: IWD
-    industry: SOXX
-    subindustry: [SOXX, XSW, IXC]
-  PCTY:
-    market: SPY
-    momentum: MTUM
-    value: IWD
-    industry: XSW
-    subindustry: [PAYC, CDAY, ADP]
-  AT.L:
-    market: ACWX
-    momentum: IMTM
-    value: IVLU
-    industry: IXC
-    subindustry: [IXC]
-  SHV:
-    market: SPY
-    momentum: IMTM
-    value: IWD
-    industry: AGG
-    subindustry: [SHY]
+  # ... factor proxies for each position
+```
 
+#### Risk Limits (`risk_limits.yaml`)
 
-⸻
+```yaml
+portfolio_limits:
+  max_volatility: 0.40
+  max_loss: -0.25
 
-Example Output
+concentration_limits:
+  max_single_stock_weight: 0.40
 
-📉 Portfolio Summary:
+variance_limits:
+  max_factor_contribution: 0.30
+  max_market_contribution: 0.30
+  max_industry_contribution: 0.30
+```
 
-Portfolio Variance:          0.0198
-Idiosyncratic Variance:      0.0118  (60%)
-Factor Variance:             0.0080  (40%)
+## 📈 Output Examples
 
-📈 Portfolio Factor Betas:
+### Portfolio Risk Summary
 
-market         0.833
-momentum      -0.213
-value         -1.227
-industry       0.583
-subindustry    0.605
+The system generates comprehensive risk reports including:
 
-🧮 Per-Asset Risk Table:
+- **Volatility Analysis**: Portfolio and individual position volatility
+- **Factor Exposures**: Market, momentum, value, and industry factor betas
+- **Risk Decomposition**: Variance attribution by factor and position
+- **Concentration Analysis**: Herfindahl index and position concentration
+- **Risk Limit Monitoring**: Automated checking against defined limits
 
-Ticker	Vol A	Idio Vol A	Weighted Idio Var
-TW	0.337	0.224	0.00113
-MSCI	0.317	0.168	0.00064
-NVDA	0.621	0.249	0.00179
-PCTY	0.328	0.221	0.00110
-AT.L	0.313	0.301	0.00711
+### Single Stock Profile
 
+Individual stock analysis provides:
 
-⸻
+- **Factor Regression**: Multi-factor regression diagnostics
+- **Risk Metrics**: Volatility, beta, and idiosyncratic risk
+- **Factor Contributions**: Detailed factor exposure breakdown
+- **Peer Comparison**: Relative performance vs. factor proxies
 
-Diagrams & Architecture
+## 🔧 Advanced Usage
 
-See docs/architecture.md for high-level design and modular breakdown.
+### Custom Factor Models
+
+You can customize factor models by modifying the `stock_factor_proxies` section in `portfolio.yaml`:
+
+```yaml
+stock_factor_proxies:
+  YOUR_STOCK:
+    market: SPY          # Market factor proxy
+    momentum: MTUM       # Momentum factor proxy
+    value: IWD          # Value factor proxy
+    industry: KCE       # Industry factor proxy
+    subindustry: [PEER1, PEER2, PEER3]  # Sub-industry peers
+```
+
+### Risk Limit Customization
+
+Adjust risk limits in `risk_limits.yaml` to match your risk tolerance:
+
+```yaml
+portfolio_limits:
+  max_volatility: 0.35    # Maximum portfolio volatility
+  max_loss: -0.20         # Maximum expected loss
+
+concentration_limits:
+  max_single_stock_weight: 0.25  # Maximum single position weight
+```
+
+## 🧪 Testing
+
+The system includes several test entry points:
+
+1. **Portfolio Analysis**: `python run_portfolio_risk.py`
+2. **Single Stock Profile**: `python run_single_stock_profile.py`
+3. **Risk Runner**: `python run_risk.py`
+
+Each provides detailed diagnostics and risk metrics.
+
+## 📁 Project Structure
+
+```
+risk_module/
+├── README.md                 # This file
+├── architecture.md          # Detailed architecture documentation
+├── portfolio.yaml           # Portfolio configuration
+├── risk_limits.yaml         # Risk limit definitions
+├── data_loader.py           # Data fetching and caching
+├── factor_utils.py          # Factor analysis utilities
+├── portfolio_risk.py        # Portfolio risk calculations
+├── risk_summary.py          # Single-stock risk profiling
+├── run_portfolio_risk.py    # Portfolio analysis runner
+├── run_risk.py             # Risk analysis runner
+├── helpers_display.py       # Display utilities
+├── helpers_input.py         # Input processing utilities
+├── risk_helpers.py          # Risk calculation helpers
+├── portfolio_optimizer.py   # Portfolio optimization
+├── send_risk_summary_to_gpt.py  # GPT integration
+└── cache_prices/           # Cached price data (gitignored)
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🔗 Dependencies
+
+- **pandas**: Data manipulation and analysis
+- **numpy**: Numerical computing
+- **statsmodels**: Statistical modeling and regression
+- **requests**: HTTP library for API calls
+- **python-dotenv**: Environment variable management
+- **pyarrow**: Parquet file handling for caching
+
+## 🆘 Support
+
+For questions or issues:
+
+1. Check the `architecture.md` file for detailed technical documentation
+2. Review the example configurations in `portfolio.yaml` and `risk_limits.yaml`
+3. Open an issue on GitHub with detailed error information
+
+## 🚀 Future Enhancements
+
+- [ ] Streamlit dashboard integration
+- [ ] GPT-powered peer suggestion system
+- [ ] Support for cash exposure and short positions
+- [ ] Real-time risk monitoring
+- [ ] Additional factor models (quality, size, etc.)
+- [ ] Backtesting capabilities
+- [ ] Risk attribution visualization
+
+---
+
+**Built with ❤️ for quantitative risk analysis**
