@@ -54,22 +54,20 @@ def interpret_portfolio_risk(diagnostics_text: str) -> str:
 # In[35]:
 
 
-# Redirect printed output from the portfolio run
-f = StringIO()
-with redirect_stdout(f):
-    run_portfolio("portfolio.yaml")
+# Only run this if the script is executed directly
+if __name__ == "__main__":
+    # Redirect printed output from the portfolio run
+    f = StringIO()
+    with redirect_stdout(f):
+        run_portfolio("portfolio.yaml")
 
-raw_output = f.getvalue()
+    raw_output = f.getvalue()
 
+    # Run GPT-based interpretation
+    interpretation = interpret_portfolio_risk(raw_output)
 
-# In[36]:
-
-
-# Run GPT-based interpretation
-interpretation = interpret_portfolio_risk(raw_output)
-
-print("\n=== GPT Portfolio Interpretation ===\n")
-print(interpretation)
+    print("\n=== GPT Portfolio Interpretation ===\n")
+    print(interpretation)
 
 
 # In[ ]:

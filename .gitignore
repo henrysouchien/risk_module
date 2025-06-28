@@ -5,3 +5,10 @@ __pycache__/
 .DS_Store 
 .ipynb_checkpoints/
 *.ipynb
+# Ignore backup files with date patterns
+*_dev_????-??-??.py
+# Ignore in-progress files
+app.py
+templates/dashboard.html
+# Ignore usage log files
+error_logs/*.json
