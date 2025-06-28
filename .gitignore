@@ -12,3 +12,5 @@ app.py
 templates/dashboard.html
 # Ignore usage log files
 error_logs/*.json
+# Ignore YAML configuration files
+*.yaml
