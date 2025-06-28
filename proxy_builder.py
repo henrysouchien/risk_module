@@ -51,7 +51,7 @@ def fetch_profile(ticker: str) -> dict:
 # In[3]:
 
 
-# file: proxy_builder
+# file: proxy_builder.py
 
 import yaml
 
@@ -83,7 +83,7 @@ def map_exchange_proxies(exchange: str, proxy_map: dict) -> dict:
 # In[5]:
 
 
-# file: proxy_builder
+# file: proxy_builder.py
 
 import yaml
 
@@ -105,7 +105,7 @@ def map_industry_etf(industry: str, etf_map: dict) -> str:
 # In[7]:
 
 
-# file: proxy_builder
+# file: proxy_builder.py
 
 def build_proxy_for_ticker(
     ticker: str,
@@ -143,7 +143,7 @@ def build_proxy_for_ticker(
 # In[9]:
 
 
-# file: proxy_builder
+# file: proxy_builder.py
 
 import yaml
 from pathlib import Path
@@ -189,7 +189,7 @@ def inject_proxies_into_portfolio_yaml(path: str = "portfolio.yaml") -> None:
 # In[11]:
 
 
-# file: proxy_builder
+# file: proxy_builder.py
 
 import os
 from typing import List
@@ -277,7 +277,7 @@ Industry: {industry}
 # In[12]:
 
 
-# file: proxy_builder
+# file: proxy_builder.py
 
 from typing import List
 
@@ -299,7 +299,7 @@ def filter_valid_tickers(cands: List[str]) -> List[str]:
 # In[13]:
 
 
-# file: proxy_builder
+# file: proxy_builder.py
 
 import ast
 
@@ -332,7 +332,7 @@ def get_subindustry_peers_from_ticker(ticker: str) -> list[str]:
 # In[15]:
 
 
-# file: proxy_builder
+# file: proxy_builder.py
 
 import yaml
 from pathlib import Path
