@@ -17,3 +17,5 @@ error_logs/*.json
 # Ignore plaid_loader files
 *plaid_loader*
 plaid_loader.py
+# Ignore secrets directory
+risk_module_secrets/
