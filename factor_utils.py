@@ -35,7 +35,8 @@ def calc_monthly_returns(prices: pd.Series) -> pd.Series:
     Returns:
         pd.Series: Monthly % change returns, NaNs dropped.
     """
-    return prices.pct_change().dropna()
+    prices = prices.ffill() 
+    return prices.pct_change(fill_method=None).dropna()
 
 
 def compute_volatility(returns: pd.Series) -> Dict[str, float]:

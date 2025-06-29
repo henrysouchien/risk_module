@@ -17,16 +17,39 @@ BASE_URL = "https://financialmodelingprep.com/stable"
 
 def fetch_profile(ticker: str) -> dict:
     """
-    Fetch and normalize company profile data from FMP's stable profile endpoint.
+    Fetches normalized company profile metadata from Financial Modeling Prep (FMP)
+    using the `/stable/profile` endpoint.
 
-    Returns a dict with:
-        - ticker
-        - exchange
-        - country
-        - industry
-        - marketCap
+    Retrieves and parses the profile for a given ticker symbol, returning key
+    fields needed for factor proxy mapping and classification (e.g., exchange, industry, ETF status).
 
-    Raises ValueError if data is missing or malformed.
+    Parameters
+    ----------
+    ticker : str
+        The stock symbol to query (e.g., "AAPL").
+
+    Returns
+    -------
+    dict
+        A dictionary with keys:
+            - 'ticker'     : str  — confirmed symbol (e.g., "AAPL")
+            - 'exchange'   : str  — primary listing exchange (e.g., "NASDAQ")
+            - 'country'    : str  — country code (e.g., "US")
+            - 'industry'   : str  — FMP-defined industry name (e.g., "Consumer Electronics")
+            - 'marketCap'  : int  — latest market cap in USD
+            - 'isEtf'      : bool — True if classified as an ETF
+            - 'isFund'     : bool — True if classified as a mutual fund
+
+    Raises
+    ------
+    ValueError
+        If the API call fails or returns empty/malformed data.
+
+    Notes
+    -----
+    • Used by proxy construction and GPT peer logic to determine asset type.
+    • ETF and fund flags are useful for excluding non-operating entities from peer analysis.
+    • Always returns the requested `ticker` if no symbol is present in payload.
     """
     url = f"{BASE_URL}/profile?symbol={ticker}&apikey={FMP_API_KEY}"
     resp = requests.get(url, timeout=10)
@@ -45,6 +68,8 @@ def fetch_profile(ticker: str) -> dict:
         "country": profile.get("country"),                # e.g. "US"
         "industry": profile.get("industry"),              # e.g. "Consumer Electronics"
         "marketCap": profile.get("marketCap"),            # e.g. 3T
+        "isEtf": profile.get("isEtf", False),
+        "isFund": profile.get("isFund", False),
     }
 
 
@@ -97,9 +122,18 @@ def load_industry_etf_map(path: str = "industry_to_etf.yaml") -> dict:
 def map_industry_etf(industry: str, etf_map: dict) -> str:
     """
     Map a given industry string to its corresponding ETF using the lookup map.
-    Returns etf_map['DEFAULT'] if industry not found.
+
+    Returns
+    -------
+    str or None
+        Matching ETF ticker from the map. If industry is not found, returns None.
+
+    Notes
+    -----
+    • No fallback to 'DEFAULT' — this is now handled at the call site,
+      where fund/ETF detection can decide whether to skip the assignment.
     """
-    return etf_map.get(industry, etf_map.get("DEFAULT", "SPY"))
+    return etf_map.get(industry)
 
 
 # In[7]:
@@ -113,8 +147,54 @@ def build_proxy_for_ticker(
     industry_map: dict
 ) -> dict:
     """
-    Builds the full stock_factor_proxies entry for a single ticker.
-    Includes market, momentum, value, industry, and placeholder subindustry.
+    Constructs a stock_factor_proxies dictionary entry for a single ticker.
+
+    This function:
+      • Fetches the company profile from FMP using the provided ticker.
+      • Maps the exchange to market/momentum/value ETFs using `exchange_map`.
+      • If the stock is not an ETF or fund, maps the industry to an ETF using `industry_map`
+        and initializes a placeholder subindustry list.
+      • For ETFs or funds, sets both `industry` and `subindustry` to None or empty.
+
+    Parameters
+    ----------
+    ticker : str
+        The stock ticker symbol (e.g., "AAPL").
+    exchange_map : dict
+        Dictionary loaded from `exchange_etf_proxies.yaml`, mapping exchange names
+        to ETF proxies (keys: market, momentum, value).
+    industry_map : dict
+        Dictionary loaded from `industry_to_etf.yaml`, mapping industry names
+        to representative ETFs.
+
+    Returns
+    -------
+    dict
+        A dictionary with the structure:
+        {
+            "market": str,
+            "momentum": str,
+            "value": str,
+            "industry": Optional[str],
+            "subindustry": list
+        }
+
+    Example
+    -------
+    {
+        "market": "SPY",
+        "momentum": "MTUM",
+        "value": "IWD",
+        "industry": "IGV",          # or empty if ETF
+        "subindustry": []           # or empty if ETF
+    }
+
+    Notes
+    -----
+    • ETFs or funds are assigned themselves as their industry proxy 
+      only if they are not already serving as the market proxy.
+    • If the FMP profile fetch fails, the function returns None.
+    • Unrecognized industries default to industry_map['DEFAULT'], if defined.
     """
     try:
         profile = fetch_profile(ticker)
@@ -124,18 +204,22 @@ def build_proxy_for_ticker(
 
     proxies = {}
 
-    # Add exchange-based factors
+    # Add exchange-based factors (always)
     proxies.update(map_exchange_proxies(profile.get("exchange", ""), exchange_map))
 
-    # Add industry ETF
-    industry = profile.get("industry")
-    if industry:
-        proxies["industry"] = map_industry_etf(industry, industry_map)
+    # Assign industry to itself only if it's an ETF/fund AND not already used as market proxy
+    # Else, add industry proxy ETF
+    if profile.get("isEtf") or profile.get("isFund"):
+        market_proxy = proxies.get("market", "").upper()
+        if ticker.upper() != market_proxy:
+            proxies["industry"] = ticker.upper()
+        else:
+            proxies["industry"] = ""
+        proxies["subindustry"] = []
     else:
-        proxies["industry"] = industry_map.get("DEFAULT", "SPY")
-
-    # Placeholder for subindustry
-    proxies["subindustry"] = []
+        industry = profile.get("industry")
+        proxies["industry"] = map_industry_etf(industry, industry_map) if industry else ""
+        proxies["subindustry"] = []
 
     return proxies
 
@@ -150,8 +234,38 @@ from pathlib import Path
 
 def inject_proxies_into_portfolio_yaml(path: str = "portfolio.yaml") -> None:
     """
-    Loads portfolio.yaml, builds stock_factor_proxies for each ticker in portfolio_input,
-    and writes updated file in-place.
+    Populates the `stock_factor_proxies` section of a portfolio YAML file using exchange
+    and industry mappings.
+
+    For each ticker listed in `portfolio_input`, this function:
+      - Retrieves the company profile via FMP.
+      - Maps the exchange to market/momentum/value ETFs (via `exchange_etf_proxies.yaml`).
+      - Maps the industry to an ETF (via `industry_to_etf.yaml`).
+      - Adds a placeholder `subindustry: []` entry.
+      - Stores results in the `stock_factor_proxies` block of the YAML.
+
+    Parameters
+    ----------
+    path : str, optional
+        Path to the portfolio YAML file. Defaults to "portfolio.yaml".
+
+    Raises
+    ------
+    FileNotFoundError
+        If the specified YAML file does not exist.
+    ValueError
+        If the YAML file does not contain a valid `portfolio_input` block.
+
+    Side Effects
+    ------------
+    • Overwrites the YAML file in-place with updated `stock_factor_proxies`.
+    • Prints the number of tickers updated.
+    • Logs warnings for tickers that fail profile retrieval.
+
+    Example
+    -------
+    >>> inject_proxies_into_portfolio_yaml("my_portfolio.yaml")
+    ✅ Updated stock_factor_proxies for 4 tickers in my_portfolio.yaml
     """
     # Load YAML
     p = Path(path)
@@ -212,10 +326,43 @@ def generate_subindustry_peers(
     temperature: float = 0.2,
 ) -> List[str]:
     """
-    Ask GPT for 5-10 peer tickers in the same sub-industry.
+    Uses GPT to generate a peer group of subindustry tickers for a given stock.
 
-    Returns a **list of tickers** (strings).  
-    Empty list → either parse failure or model couldn’t comply.
+    Given a stock's ticker, name, and industry, this function sends a structured
+    prompt to the OpenAI ChatCompletion API and expects a response in the form of 
+    a Python list of tickers (strings). The peers are intended to reflect companies 
+    with similar business models or competitive positioning.
+
+    Parameters
+    ----------
+    ticker : str
+        The stock symbol to generate peers for (e.g., "NVDA").
+    name : str
+        The full company name (e.g., "NVIDIA Corporation").
+    industry : str
+        Broad industry classification (e.g., "Semiconductors").
+    model : str, default="gpt-4.1"
+        The OpenAI chat model to use.
+    max_tokens : int, default=200
+        Max token count for the GPT response.
+    temperature : float, default=0.2
+        Sampling temperature (lower → more deterministic).
+
+    Returns
+    -------
+    List[str]
+        The raw GPT response content as a string (still needs `ast.literal_eval()` parsing).
+        Returns an empty list on error or if the model response is malformed.
+
+    Notes
+    -----
+    • This function does **not** parse the GPT output into a Python list. That is handled downstream.
+    • The model is instructed to return only a Python list of valid, public tickers from the U.S., U.K., or Canada.
+    • Failures (API issues, unexpected formats) return an empty list and print full stack trace.
+
+    Example Output
+    --------------
+    '["AMD", "INTC", "AVGO", "QCOM", "TSM", "MRVL", "TXN"]'
     """
     prompt = f"""
 You’re a fundamental equity analyst.
@@ -283,8 +430,34 @@ from typing import List
 
 def filter_valid_tickers(cands: List[str]) -> List[str]:
     """
-    Keep only symbols for which `fetch_profile` succeeds.
-    Falls through silently on any API / parsing error.
+    Filters out invalid or unrecognized stock tickers by verifying against FMP.
+
+    Attempts to call `fetch_profile` for each ticker in the input list. 
+    Only tickers that return a valid profile from the Financial Modeling Prep API 
+    are included in the output.
+
+    Parameters
+    ----------
+    cands : List[str]
+        List of raw ticker symbols to validate (e.g., ["AAPL", "XYZQ", "MSFT"]).
+
+    Returns
+    -------
+    List[str]
+        List of valid tickers that successfully returned profile data. 
+        All tickers are returned in uppercase.
+
+    Notes
+    -----
+    • Silent failure: tickers that raise exceptions (e.g., not found, invalid format)
+      are ignored without logging.
+    • Assumes `fetch_profile()` raises on bad tickers.
+    • Case is normalized to `.upper()` for consistency downstream.
+
+    Example
+    -------
+    >>> filter_valid_tickers(["AAPL", "MSFT", "FAKE1", "ZZZQ"])
+    ['AAPL', 'MSFT']
     """
     good = []
     for sym in cands:
@@ -305,12 +478,46 @@ import ast
 
 def get_subindustry_peers_from_ticker(ticker: str) -> list[str]:
     """
-    Fetches company profile, sends details to GPT, and returns a list of parsed peer tickers.
+    Generates a cleaned list of subindustry peer tickers using GPT.
 
-    If GPT response is malformed or empty, returns [].
+    This function:
+    • Fetches company metadata from FMP using the ticker.
+    • If the ticker is classified as an ETF or fund, returns an empty list immediately.
+    • Otherwise, sends the company name and industry to the GPT API to generate 5–10 peer tickers.
+    • Parses and validates the GPT response.
+    • Filters the result to include only real, currently listed tickers (via `fetch_profile`).
+
+    Parameters
+    ----------
+    ticker : str
+        Stock symbol to generate peer group for.
+
+    Returns
+    -------
+    list[str]
+        Cleaned list of valid peer tickers (strings). Empty if parsing fails, the symbol is an ETF/fund,
+        or if no valid peers are returned.
+
+    Notes
+    -----
+    • Skips GPT call entirely for ETFs and mutual funds (via FMP profile check).
+    • Uses `ast.literal_eval()` to safely parse GPT output.
+    • Invalid responses (non-list, parse errors, delisted tickers) are silently skipped.
+    • Calls `filter_valid_tickers()` to enforce only valid symbols from FMP.
+
+    Side Effects
+    ------------
+    • Prints raw GPT output and any parse failures to stdout.
+    • Logs skip message for ETFs/funds.
     """
     try:
         profile = fetch_profile(ticker)
+
+        # Skip peer generation for ETFs and funds
+        if profile.get("isEtf") or profile.get("isFund"):
+            print(f"⏭️ Skipping GPT peers for {ticker} (ETF or fund)")
+            return []
+            
         name = profile.get("companyName") or profile.get("name") or ticker
         industry = profile.get("industry", "Unknown")
 
@@ -342,10 +549,31 @@ def inject_subindustry_peers_into_yaml(
     tickers: list[str] = None
 ) -> None:
     """
-    For each ticker in portfolio_input (or provided list), generates subindustry peers via GPT
-    and writes them into the 'stock_factor_proxies' section under 'subindustry'.
+    Generates subindustry peer groups via GPT for tickers in a portfolio YAML file.
 
-    Overwrites the existing YAML file.
+    This function updates the `stock_factor_proxies` section of the YAML file by adding
+    a `subindustry` key for each ticker. It uses the GPT-based peer generation function
+    (`get_subindustry_peers_from_ticker`) to generate peer lists based on company name
+    and industry.
+
+    Parameters
+    ----------
+    yaml_path : str, default "portfolio.yaml"
+        Path to the portfolio YAML file. The file must contain a `portfolio_input` section.
+
+    tickers : list[str], optional
+        List of tickers to update. If None, updates all tickers in `portfolio_input`.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the specified YAML file does not exist.
+
+    Side Effects
+    ------------
+    • Overwrites the YAML file in place.
+    • Adds or updates the `subindustry` field under `stock_factor_proxies` for each ticker.
+    • Prints progress and peer count for each ticker to stdout.
     """
     # ── Load YAML
     path = Path(yaml_path)
@@ -376,5 +604,81 @@ def inject_subindustry_peers_into_yaml(
 # In[ ]:
 
 
+# file: proxy_builder.py
 
+import yaml
+from pathlib import Path
+
+def inject_all_proxies(
+    yaml_path: str = "portfolio.yaml",
+    use_gpt_subindustry: bool = False
+) -> None:
+    """
+    Injects factor proxy mappings into a portfolio YAML file.
+
+    For each ticker in `portfolio_input`, this function builds and injects:
+      - Market, momentum, and value proxies based on exchange
+      - Industry ETF proxy based on industry classification
+      - (Optional) Subindustry peer list generated via GPT
+
+    Parameters
+    ----------
+    yaml_path : str, default "portfolio.yaml"
+        Path to the portfolio YAML file. The file must include a `portfolio_input` section.
+    
+    use_gpt_subindustry : bool, default False
+        If True, sends company name + industry to GPT to generate subindustry peer tickers,
+        and injects them into the `subindustry` field for each stock. Otherwise, the subindustry
+        field is left empty (or populated from other means).
+
+    Raises
+    ------
+    FileNotFoundError
+        If the YAML file does not exist.
+    
+    ValueError
+        If the YAML file lacks a `portfolio_input` section.
+
+    Side Effects
+    ------------
+    Overwrites the YAML file in place, populating the `stock_factor_proxies` section.
+    Prints progress to stdout for each ticker processed.
+    """
+    path = Path(yaml_path)
+    if not path.exists():
+        raise FileNotFoundError(f"{yaml_path} not found")
+
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
+
+    tickers = list(config.get("portfolio_input", {}).keys())
+    if not tickers:
+        raise ValueError("No portfolio_input found in YAML.")
+
+    exchange_map = load_exchange_proxy_map()
+    industry_map = load_industry_etf_map()
+    stock_proxies = {}
+
+    for tkr in tickers:
+        proxy = build_proxy_for_ticker(tkr, exchange_map, industry_map)
+        if proxy:
+            stock_proxies[tkr] = proxy
+        else:
+            print(f"⚠️ Skipping {tkr} due to profile error.")
+
+    config["stock_factor_proxies"] = stock_proxies
+
+    # Optional: enrich with GPT subindustry peers
+    if use_gpt_subindustry:
+        from proxy_builder import get_subindustry_peers_from_ticker
+        for tkr in tickers:
+            peers = get_subindustry_peers_from_ticker(tkr)
+            stock_proxies[tkr]["subindustry"] = peers
+            print(f"✅ {tkr} → {len(peers)} GPT peers")
+
+    # Save updated YAML
+    with open(path, "w") as f:
+        yaml.dump(config, f, sort_keys=False)
+
+    print(f"\n✅ All proxies injected into {yaml_path}")
 

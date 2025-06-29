@@ -37,6 +37,8 @@ from risk_helpers import (
     calc_max_factor_betas
 )
 
+from proxy_builder import inject_all_proxies  
+
 def run_portfolio(filepath: str):
     """
     High-level “one-click” entry-point for a full portfolio risk run.
@@ -372,20 +374,28 @@ if __name__ == "__main__":
     parser.add_argument("--maxreturn", action="store_true", help="Run max-return optimization")
     parser.add_argument("--scenario", type=str, help="Path to what-if scenario YAML file")
     parser.add_argument("--delta", type=str, help='Inline weight shifts, e.g. "TW:+500bp,PCTY:-200bp"')
+    parser.add_argument("--inject_proxies", action="store_true", help="Inject market, industry, and optional subindustry proxies")
+    parser.add_argument("--use_gpt", action="store_true", help="Enable GPT-generated subindustry peers (used with --inject_proxies)")
     args = parser.parse_args()
 
-    if args.portfolio:
-        if args.whatif:
-            run_what_if(args.portfolio, scenario_yaml=args.scenario, delta=args.delta)        
-        elif args.minvar:
-            run_min_variance(args.portfolio)
-        elif args.maxreturn:
-            run_max_return(args.portfolio)
-        else:
-            run_portfolio(args.portfolio)
-
+    if args.portfolio and args.inject_proxies:
+        inject_all_proxies(args.portfolio, use_gpt_subindustry=args.use_gpt)
+    
+    elif args.portfolio and args.whatif:
+        run_what_if(args.portfolio, scenario_yaml=args.scenario, delta=args.delta)
+    
+    elif args.portfolio and args.minvar:
+        run_min_variance(args.portfolio)
+    
+    elif args.portfolio and args.maxreturn:
+        run_max_return(args.portfolio)
+    
+    elif args.portfolio:
+        run_portfolio(args.portfolio)
+    
     elif args.stock and args.start and args.end:
         run_stock(args.stock, args.start, args.end)
+    
     else:
         parser.print_help()
 
