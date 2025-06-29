@@ -19,3 +19,5 @@ error_logs/*.json
 plaid_loader.py
 # Ignore secrets directory
 risk_module_secrets/
+# Ignore secrets update script
+update_secrets.sh
