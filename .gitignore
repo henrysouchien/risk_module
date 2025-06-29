@@ -14,3 +14,6 @@ templates/dashboard.html
 error_logs/*.json
 # Ignore YAML configuration files
 *.yaml
+# Ignore plaid_loader files
+*plaid_loader*
+plaid_loader.py
