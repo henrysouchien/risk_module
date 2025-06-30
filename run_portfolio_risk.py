@@ -282,6 +282,12 @@ def display_portfolio_summary(summary: dict):
         if k not in ("industry", "subindustry")
     }
 
+    print("\n=== Top Stock Variance (Euler %) ===")
+    euler = summary["euler_variance_pct"]
+    top   = dict(sorted(euler.items(), key=lambda kv: -kv[1])[:10])  # top-10
+    for tkr, pct in top.items():
+        print(f"{tkr:<10} : {pct:6.1%}")
+        
     print("\n=== Factor Variance (% of Portfolio, excluding industry) ===")
     for k, v in filtered.items():
         print(f"{k.title():<10} : {v:.0%}")

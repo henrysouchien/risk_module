@@ -18,7 +18,6 @@ from factor_utils import (
     compute_stock_factor_betas,
 )
 
-
 def normalize_weights(weights: Dict[str, float], normalize: bool = True) -> Dict[str, float]:
     """
     Ensure weights sum to 1. If normalize is False, returns as-is.
@@ -197,13 +196,43 @@ def compute_portfolio_variance_breakdown(
     }
 
 
-# In[1]:
+# In[ ]:
 
+
+# File: portfolio_risk.py
 
 import pandas as pd
 import numpy as np
-import statsmodels.api as sm
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict
+
+def compute_euler_variance_percent(
+    *,                       # force keyword args for clarity
+    weights: Dict[str, float],
+    cov_matrix: pd.DataFrame,
+) -> pd.Series:
+    """
+    Euler (marginal) variance decomposition.
+
+    Returns each asset’s share of **total portfolio variance** as a %
+    (values sum exactly to 1.0).
+
+    Parameters
+    ----------
+    weights     : {ticker: weight}
+    cov_matrix  : Σ, index/cols = same tickers
+    """
+    w = pd.Series(weights, dtype=float).loc[cov_matrix.index]
+    # marginal contributions Σ·w
+    sigma_w = cov_matrix.values @ w.values
+    # component (Euler) contributions w_i · (Σ·w)_i
+    contrib = pd.Series(w.values * sigma_w, index=cov_matrix.index)
+    return contrib / contrib.sum()          # normalise to 1.0
+
+
+# In[1]:
+
+
+# File: portfolio_risk.py
 
 import pandas as pd
 import numpy as np
@@ -273,6 +302,7 @@ def build_portfolio_view(
     - Runs per-stock single-factor regressions to compute betas (market, momentum, value, industry, subindustry).
     - Calculates idiosyncratic volatilities and annualized variances.
     - Computes per-stock factor volatilities (σ_i,f) and weighted factor variance (w² · β² · σ²).
+    - Computes Euler (marginal) variance contributions for every stock.
     - Decomposes portfolio variance into idiosyncratic vs factor-driven.
     - Aggregates per-industry ETF variance contributions (based on industry proxies).
     - Computes portfolio-level factor betas and Herfindahl concentration.
@@ -309,6 +339,7 @@ def build_portfolio_view(
             - 'portfolio_factor_betas': weighted sum of factor exposures
             - 'factor_vols': per-stock annualized factor volatilities
             - 'weighted_factor_var': w² · β² · σ² contributions
+            - 'euler_variance_pct': per-stock share of total variance (Series, sums to 1.0)
             - 'asset_vol_summary': asset-level volatility and idio stats
             - 'variance_decomposition': total vs idio vs factor variance
             - 'industry_variance': {
@@ -397,7 +428,7 @@ def build_portfolio_view(
             annual_idio_var = monthly_idio_var * 12
             idio_var_dict[ticker] = float(annual_idio_var)
 
-    # ─── 2. Compute Factor Volatility & Weighted Variance ───────────────────────
+    # ─── 2a. Compute Factor Volatility & Weighted Variance ───────────────────────
     df_factor_vols   = pd.DataFrame(index=df_stock_betas.index,
                                     columns=df_stock_betas.columns)   # σ_i,f (annual)
     weighted_factor_var = pd.DataFrame(index=df_stock_betas.index,
@@ -444,27 +475,36 @@ def build_portfolio_view(
             # ----- annual σ_i,f ----------------------------------------------------
             sigmas = pd.Series({f: r.std(ddof=1) * np.sqrt(12) for f, r in fac_ret.items()})
             df_factor_vols.loc[tkr, sigmas.index] = sigmas
-    
-            # df_factor_vols  : σ-table (annual factor vols by stock)
-            df_factor_vols = (
-                df_factor_vols
-                    .apply(pd.to_numeric, errors="coerce")  # force numeric, NaNs where bad
-                    .astype("float64", copy=False)          # ensure float dtype, no copy if already
-                    .fillna(0.0)                           # now safe – no warning
-            )
             
-            # betas_filled   : β-table with NaNs → 0.0
-            betas_filled = (
-                df_stock_betas
-                    .apply(pd.to_numeric, errors="coerce")
-                    .astype("float64", copy=False)
-                    .fillna(0.0)
-            )
-    
+        # ---------- after loop: clean tables & build w²·β²·σ² -------------
+        
+        # df_factor_vols  : σ-table (annual factor vols by stock)
+        df_factor_vols = (
+            df_factor_vols
+                .apply(pd.to_numeric, errors="coerce")  # force numeric, NaNs where bad
+                .astype("float64", copy=False)          # ensure float dtype, no copy if already
+                .fillna(0.0)                           # now safe – no warning
+        )
+        
+        # betas_filled β-table with NaNs → 0.0
+        betas_filled = (
+            df_stock_betas
+                .apply(pd.to_numeric, errors="coerce")
+                .astype("float64", copy=False)
+                .fillna(0.0)
+        )
+
         # ----- weighted factor variance  w_i² β_i,f² σ_i,f² -----------------------
         weighted_factor_var = betas_filled.pow(2) * df_factor_vols.pow(2)
         weighted_factor_var = weighted_factor_var.mul(w2, axis=0)
 
+    # ─── 2b. Euler variance attribution  -------------------------------
+    cov_annual = cov_mat * 12                       # annualise Σ (12× monthly)
+    
+    euler_var_pct = compute_euler_variance_percent(
+        weights       = weights,
+        cov_matrix    = cov_annual,                 # use annual Σ
+    )
 
     # ─── 3a. Aggregate Industry-Level Variance ───────────────────────────────────
     industry_var_dict = {}
@@ -539,7 +579,8 @@ def build_portfolio_view(
         "df_stock_betas":         df_stock_betas,
         "portfolio_factor_betas": portfolio_factor_betas,
         "factor_vols":            df_factor_vols,         
-        "weighted_factor_var":    weighted_factor_var, 
+        "weighted_factor_var":    weighted_factor_var,
+        "euler_variance_pct":  euler_var_pct,
         "asset_vol_summary":      df_asset,
         "portfolio_returns":      port_ret,
         "variance_decomposition": compute_portfolio_variance_breakdown(

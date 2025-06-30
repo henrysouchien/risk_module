@@ -8,8 +8,10 @@
 
 import argparse
 import yaml
+from contextlib import redirect_stdout 
 from typing import Optional, Dict, Union, List
 import pandas as pd
+from io import StringIO
 
 from risk_summary import (
     get_detailed_stock_factor_profile,
@@ -36,8 +38,43 @@ from portfolio_optimizer import (
 from risk_helpers import (
     calc_max_factor_betas
 )
+from proxy_builder import inject_all_proxies
+from gpt_helpers import interpret_portfolio_risk
 
-from proxy_builder import inject_all_proxies  
+def run_and_interpret(portfolio_yaml: str):
+    """
+    Convenience wrapper:
+
+        1. runs `run_portfolio(portfolio_yaml)`
+        2. captures everything it prints
+        3. feeds that text to GPT for a summary
+        4. prints **both** the GPT summary *and* the raw diagnostics
+        5. returns the GPT summary string
+
+    Parameters
+    ----------
+    portfolio_yaml : str
+        Path to the portfolio configuration YAML.
+
+    Returns
+    -------
+    str
+        The GPT interpretation of the risk report.
+    """
+    buf = StringIO()
+    with redirect_stdout(buf):
+        run_portfolio(portfolio_yaml)
+
+    diagnostics = buf.getvalue()
+    summary_txt = interpret_portfolio_risk(diagnostics)
+
+    # --- show results ----------------------------------------------------
+    print("\n=== GPT Portfolio Interpretation ===\n")
+    print(summary_txt)
+    print("\n=== Full Diagnostics ===\n")
+    print(diagnostics)
+
+    #return summary_txt    #Optional: return GPT summary text
 
 def run_portfolio(filepath: str):
     """
@@ -65,13 +102,13 @@ def run_portfolio(filepath: str):
     ----------
     filepath : str
         Path to the *portfolio* YAML ( **not** the risk-limits file ).
-        The function expects the YAML schema you have been using
+        The function expects the YAML schema
         (`start_date`, `end_date`, `portfolio_input`, `stock_factor_proxies`, …).
 
     Side-effects
     ------------
     • Prints a formatted risk report to stdout.
-    • Does **not** return anything; everything is handled inline.
+    • Does **not** return anything expect prints; everything is handled inline.
       (If you need the raw DataFrames, simply return `summary`, `df_risk`,
       and `df_beta` at the end.)
 
@@ -87,6 +124,7 @@ def run_portfolio(filepath: str):
     market       β = 0.74  ≤ 0.80  → PASS
     …
     """
+        
     # ─── 1. Load YAML Inputs ─────────────────────────────────
      
     config = load_portfolio_config(filepath)
@@ -106,18 +144,6 @@ def run_portfolio(filepath: str):
     # ─── 2. Display Summary ─────────────────────────────────
     display_portfolio_config(config)
     display_portfolio_summary(summary)
-
-    # ─── 2b. Top Stock-Level Factor Variance Contributors ───────────────
-    wfv = summary["weighted_factor_var"]
-    total_var = summary["variance_decomposition"]["portfolio_variance"]
-    
-    stock_contrib = wfv.sum(axis=1).sort_values(ascending=False).head(10)
-    stock_contrib_pct = stock_contrib / total_var
-    
-    print("\n=== Top 10 Stock-Level Factor Contributions to Portfolio Variance ===")
-    print(stock_contrib_pct.to_frame("% of Total Var").to_string(formatters={
-        "% of Total Var": "{:.1%}".format
-    }))
     
     # ─── 3. Compute Beta Limits ─────────────────────────────
     max_betas, max_betas_by_proxy = calc_max_factor_betas(
@@ -152,7 +178,7 @@ def run_portfolio(filepath: str):
         status = "→ PASS" if row["pass"] else "→ FAIL"
         print(f"{factor:<20} β = {row['portfolio_beta']:+.2f}  ≤ {row['max_allowed_beta']:.2f}  {status}")
 
-# ─────────────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────
 
 def run_what_if(
     filepath: str, 
@@ -376,6 +402,7 @@ if __name__ == "__main__":
     parser.add_argument("--delta", type=str, help='Inline weight shifts, e.g. "TW:+500bp,PCTY:-200bp"')
     parser.add_argument("--inject_proxies", action="store_true", help="Inject market, industry, and optional subindustry proxies")
     parser.add_argument("--use_gpt", action="store_true", help="Enable GPT-generated subindustry peers (used with --inject_proxies)")
+    parser.add_argument("--gpt", action="store_true", help="Run the portfolio report and send the output to GPT for a plain-English summary")
     args = parser.parse_args()
 
     if args.portfolio and args.inject_proxies:
@@ -389,6 +416,9 @@ if __name__ == "__main__":
     
     elif args.portfolio and args.maxreturn:
         run_max_return(args.portfolio)
+        
+    elif args.portfolio and args.gpt:
+        run_and_interpret(args.portfolio)
     
     elif args.portfolio:
         run_portfolio(args.portfolio)

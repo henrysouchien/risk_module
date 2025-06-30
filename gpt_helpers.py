@@ -1,13 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
-
-
-from run_risk import run_portfolio, run_stock, run_what_if, run_min_variance, run_max_return
-
-
-# In[7]:
+# In[ ]:
 
 
 # === OPENAI API Setup ===
@@ -24,8 +18,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 
-# In[8]:
+# In[ ]:
 
+
+# File: gpt_helpers.py
 
 def interpret_portfolio_risk(diagnostics_text: str) -> str:
     """
@@ -49,50 +45,4 @@ def interpret_portfolio_risk(diagnostics_text: str) -> str:
     )
 
     return response.choices[0].message.content.strip()
-
-
-# In[9]:
-
-
-# Redirect printed output from the portfolio run
-f = StringIO()
-with redirect_stdout(f):
-    run_portfolio("portfolio.yaml")
-
-raw_output = f.getvalue()
-
-
-# In[10]:
-
-
-# Run GPT-based interpretation
-interpretation = interpret_portfolio_risk(raw_output)
-
-print("\n=== GPT Portfolio Interpretation ===\n")
-print(interpretation)
-
-
-# In[ ]:
-
-
-# Only run this if the script is executed directly
-if __name__ == "__main__":
-    # Redirect printed output from the portfolio run
-    f = StringIO()
-    with redirect_stdout(f):
-        run_portfolio("portfolio.yaml")
-
-    raw_output = f.getvalue()
-
-    # Run GPT-based interpretation
-    interpretation = interpret_portfolio_risk(raw_output)
-
-    print("\n=== GPT Portfolio Interpretation ===\n")
-    print(interpretation)
-
-
-# In[ ]:
-
-
-
 
