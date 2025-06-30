@@ -427,6 +427,10 @@ Industry: {industry}
 # file: proxy_builder.py
 
 from typing import List
+import pandas as pd
+
+from settings import PORTFOLIO_DEFAULTS          # <— central date window
+from data_loader import fetch_monthly_close      # already cached disk-layer
 
 def filter_valid_tickers(cands: List[str]) -> List[str]:
     """
@@ -459,13 +463,20 @@ def filter_valid_tickers(cands: List[str]) -> List[str]:
     >>> filter_valid_tickers(["AAPL", "MSFT", "FAKE1", "ZZZQ"])
     ['AAPL', 'MSFT']
     """
-    good = []
+    start = PORTFOLIO_DEFAULTS["start_date"]
+    end   = PORTFOLIO_DEFAULTS["end_date"]
+
+    good: List[str] = []
+    
     for sym in cands:
         try:
-            _ = fetch_profile(sym)        # raises on 4xx/empty payload
-            good.append(sym.upper())
+            prices = fetch_monthly_close(sym, start_date=start, end_date=end)
+            if isinstance(prices, pd.Series) and not prices.empty:
+                good.append(sym.upper())
         except Exception:
-            pass                          # just skip the dud symbol
+            # Any fetch failure (network, malformed payload, etc.) → skip
+            continue
+
     return good
 
 
