@@ -82,7 +82,7 @@ risk_module/
 ├── 🛠️ helpers_input.py            # Input processing utilities
 ├── 🛠️ risk_helpers.py             # Risk calculation helpers
 ├── ⚡ portfolio_optimizer.py       # Portfolio optimization
-├── 🤖 send_risk_summary_to_gpt.py # GPT integration
+├── 🤖 gpt_helpers.py              # GPT integration and peer generation
 └── 📁 cache_prices/               # Cached price data (gitignored)
 ```
 
