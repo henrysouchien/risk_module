@@ -5,6 +5,7 @@
 
 
 from gpt_helpers import generate_subindustry_peers
+from settings import PORTFOLIO_DEFAULTS          # <— central date window
 
 
 # In[ ]:
@@ -314,7 +315,6 @@ def inject_proxies_into_portfolio_yaml(path: str = "portfolio.yaml") -> None:
 from typing import List
 import pandas as pd
 
-from settings import PORTFOLIO_DEFAULTS          # <— central date window
 from data_loader import fetch_monthly_close      # already cached disk-layer
 
 def filter_valid_tickers(
@@ -382,7 +382,11 @@ def filter_valid_tickers(
 
 import ast
 
-def get_subindustry_peers_from_ticker(ticker: str) -> list[str]:
+def get_subindustry_peers_from_ticker(
+    ticker: str,
+    start: pd.Timestamp | None = None,
+    end:   pd.Timestamp | None = None,
+) -> list[str]:
     """
     Generates a cleaned list of subindustry peer tickers using GPT.
 
@@ -397,6 +401,10 @@ def get_subindustry_peers_from_ticker(ticker: str) -> list[str]:
     ----------
     ticker : str
         Stock symbol to generate peer group for.
+        
+    start: pd.Timestamp | None = None
+    end:   pd.Timestamp | None = None
+        Dates to validate peer tickers have sufficient observations.
 
     Returns
     -------
@@ -416,6 +424,12 @@ def get_subindustry_peers_from_ticker(ticker: str) -> list[str]:
     • Prints raw GPT output and any parse failures to stdout.
     • Logs skip message for ETFs/funds.
     """
+    # ─── 0.  Resolve dates (falls back to defaults) ────────────────
+    start = pd.to_datetime(start or PORTFOLIO_DEFAULTS["start_date"])
+    end   = pd.to_datetime(end   or PORTFOLIO_DEFAULTS["end_date"])
+    
+    ticker = ticker.upper()
+
     try:
         profile = fetch_profile(ticker)
 
@@ -435,7 +449,13 @@ def get_subindustry_peers_from_ticker(ticker: str) -> list[str]:
         if not isinstance(peer_list, list):
             raise ValueError("Parsed object is not a list")
 
-        return filter_valid_tickers(peer_list, target_ticker=ticker)
+        # ▶ pass dates through so peer data screening uses **same window**
+        return filter_valid_tickers(
+            peer_list, 
+            target_ticker=ticker,
+            start=start,
+            end=end,
+        )
 
     except Exception as e:
         print(f"⚠️ {ticker}: failed to generate peers — {e}")
@@ -507,7 +527,7 @@ def inject_subindustry_peers_into_yaml(
     print(f"\n✅ Finished writing subindustry peers to {yaml_path}")
 
 
-# In[ ]:
+# In[1]:
 
 
 # file: proxy_builder.py
@@ -561,6 +581,9 @@ def inject_all_proxies(
     if not tickers:
         raise ValueError("No portfolio_input found in YAML.")
 
+    start_date = pd.to_datetime(config.get("start_date", PORTFOLIO_DEFAULTS["start_date"]))
+    end_date   = pd.to_datetime(config.get("end_date",   PORTFOLIO_DEFAULTS["end_date"]))
+
     exchange_map = load_exchange_proxy_map()
     industry_map = load_industry_etf_map()
     stock_proxies = {}
@@ -578,7 +601,11 @@ def inject_all_proxies(
     if use_gpt_subindustry:
         from proxy_builder import get_subindustry_peers_from_ticker
         for tkr in tickers:
-            peers = get_subindustry_peers_from_ticker(tkr)
+            peers = get_subindustry_peers_from_ticker(
+                tkr,
+                start=start_date,
+                end=end_date,
+            )
             stock_proxies[tkr]["subindustry"] = peers
             print(f"✅ {tkr} → {len(peers)} GPT peers")
 
@@ -587,4 +614,10 @@ def inject_all_proxies(
         yaml.dump(config, f, sort_keys=False)
 
     print(f"\n✅ All proxies injected into {yaml_path}")
+
+
+# In[ ]:
+
+
+
 
