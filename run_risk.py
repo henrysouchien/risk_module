@@ -350,11 +350,14 @@ def run_stock(
     ticker: str,
     start: Optional[str] = None,
     end: Optional[str] = None,
-    factor_proxies: Optional[Dict[str, Union[str, List[str]]]] = None
+    factor_proxies: Optional[Dict[str, Union[str, List[str]]]] = None,
+    yaml_path: Optional[str] = None, 
 ):
     """
     Runs stock risk diagnostics. If factor_proxies are provided, runs detailed multi-factor profile.
-    Otherwise, falls back to simple regression vs. market benchmark.
+    Otherwise, if ``yaml_path`` is supplied, the function looks for the
+    ticker under ``stock_factor_proxies`` in that YAML.
+    If neither is found, falls back to simple regression vs. market benchmark.
 
     Args:
         ticker (str): Stock symbol.
@@ -362,11 +365,38 @@ def run_stock(
         end (Optional[str]): End date in YYYY-MM-DD format. Defaults to today.
         factor_proxies (Optional[Dict[str, Union[str, List[str]]]]): Optional factor mapping.
     """
+    ticker = ticker.upper()
+
+    # ─── 1. Resolve date window ─────────────────────────────────────────
     today = pd.Timestamp.today().normalize()
     start = pd.to_datetime(start) if start else today - pd.DateOffset(years=5)
     end   = pd.to_datetime(end)   if end   else today
 
-    if factor_proxies is None:
+    # ─── 2. Auto-lookup proxy block from YAML (if requested) ────────────
+    if factor_proxies is None and yaml_path:
+        try:
+            cfg = load_portfolio_config(yaml_path)       # already handles safe_load + validation
+            proxies = cfg.get("stock_factor_proxies", {})
+            factor_proxies = proxies.get(ticker.upper())
+        except Exception as e:
+            print(f"⚠️  Could not load proxies from YAML: {e}")
+
+    # ─── 3. Diagnostics path A: multi-factor profile ────────────────────
+    if factor_proxies:
+        profile = get_detailed_stock_factor_profile(
+            ticker, start, end, factor_proxies
+        )
+        print("=== Volatility ===")
+        print(profile["vol_metrics"])
+
+        print("\n=== Market Regression ===")
+        print(profile["regression_metrics"])
+
+        print("\n=== Factor Summary ===")
+        print(profile["factor_summary"])
+
+    # ─── 4. Diagnostics path B: simple market regression ────────────────
+    else:
         result = get_stock_risk_profile(
             ticker,
             start_date=start,
@@ -378,19 +408,6 @@ def run_stock(
 
         print("\n=== Market Regression (SPY) ===")
         print(result["risk_metrics"])
-
-
-    else:
-        profile = get_detailed_stock_factor_profile(ticker, start, end, factor_proxies)
-
-        print("=== Volatility ===")
-        print(profile["vol_metrics"])
-
-        print("\n=== Market Regression ===")
-        print(profile["regression_metrics"])
-
-        print("\n=== Factor Summary ===")
-        print(profile["factor_summary"])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

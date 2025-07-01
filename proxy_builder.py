@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 from gpt_helpers import generate_subindustry_peers
@@ -317,47 +317,57 @@ import pandas as pd
 from settings import PORTFOLIO_DEFAULTS          # <— central date window
 from data_loader import fetch_monthly_close      # already cached disk-layer
 
-def filter_valid_tickers(cands: List[str]) -> List[str]:
+def filter_valid_tickers(
+    cands: List[str],
+    target_ticker: str,
+    start: pd.Timestamp | None = None,
+    end:   pd.Timestamp | None = None,
+) -> List[str]:
     """
-    Filters out invalid or unrecognized stock tickers by verifying against FMP.
-
-    Attempts to call `fetch_profile` for each ticker in the input list. 
-    Only tickers that return a valid profile from the Financial Modeling Prep API 
-    are included in the output.
+    Return only those peer tickers that have *at least* as many monthly
+    return observations as `target_ticker` over the same date window.
 
     Parameters
     ----------
-    cands : List[str]
-        List of raw ticker symbols to validate (e.g., ["AAPL", "XYZQ", "MSFT"]).
+    cands : list[str]
+        Raw peer symbols (e.g. ['AAPL', 'XYZ', …]).
+    target_ticker : str
+        The stock we’re building the proxy for.  Its own data length sets
+        the minimum observations all peers must match.
+    start, end : pd.Timestamp | None
+        Optional overrides for the analysis window.  Defaults fall back to
+        PORTFOLIO_DEFAULTS.
 
     Returns
     -------
-    List[str]
-        List of valid tickers that successfully returned profile data. 
-        All tickers are returned in uppercase.
-
-    Notes
-    -----
-    • Silent failure: tickers that raise exceptions (e.g., not found, invalid format)
-      are ignored without logging.
-    • Assumes `fetch_profile()` raises on bad tickers.
-    • Case is normalized to `.upper()` for consistency downstream.
-
-    Example
-    -------
-    >>> filter_valid_tickers(["AAPL", "MSFT", "FAKE1", "ZZZQ"])
-    ['AAPL', 'MSFT']
+    list[str]
+        Upper-cased symbols that satisfy the length requirement and loaded
+        cleanly from `fetch_monthly_close`.
     """
-    start = PORTFOLIO_DEFAULTS["start_date"]
-    end   = PORTFOLIO_DEFAULTS["end_date"]
+    start = pd.to_datetime(start or PORTFOLIO_DEFAULTS["start_date"])
+    end   = pd.to_datetime(end   or PORTFOLIO_DEFAULTS["end_date"])
+    
+    target_ticker = target_ticker.upper()
+    target_obs = None
+
+    # ▸ Observation count of the target
+    target_prices  = fetch_monthly_close(target_ticker, start, end)
+    target_obs  = len(target_prices)
 
     good: List[str] = []
     
     for sym in cands:
         try:
-            prices = fetch_monthly_close(sym, start_date=start, end_date=end)
-            if isinstance(prices, pd.Series) and not prices.empty:
+            prices  = fetch_monthly_close(sym, start, end)
+
+            # Basic validation: ≥3 prices for returns calculation
+            if not (isinstance(prices, pd.Series) and len(prices.dropna()) >= 3):
+                continue
+
+            # Enhanced validation: check observation count vs. target ticker
+            if len(prices) >= target_obs:
                 good.append(sym.upper())
+                
         except Exception:
             # Any fetch failure (network, malformed payload, etc.) → skip
             continue
@@ -425,7 +435,7 @@ def get_subindustry_peers_from_ticker(ticker: str) -> list[str]:
         if not isinstance(peer_list, list):
             raise ValueError("Parsed object is not a list")
 
-        return filter_valid_tickers(peer_list)
+        return filter_valid_tickers(peer_list, target_ticker=ticker)
 
     except Exception as e:
         print(f"⚠️ {ticker}: failed to generate peers — {e}")
