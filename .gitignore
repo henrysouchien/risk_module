@@ -22,4 +22,3 @@ plaid_loader.py
 risk_module_secrets/
 # Ignore secrets update script
 update_secrets.sh
-Archive/
