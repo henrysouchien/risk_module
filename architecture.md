@@ -20,6 +20,12 @@ This document provides a comprehensive overview of the Risk Module's architectur
 
 The Risk Module is a modular, stateless Python framework designed for comprehensive portfolio and single-stock risk analysis. It provides multi-factor regression diagnostics, risk decomposition, and portfolio optimization capabilities through a layered architecture that promotes maintainability, testability, and extensibility.
 
+### Data Quality Assurance
+
+The system includes robust data quality validation to prevent unstable factor calculations. A key improvement addresses the issue where insufficient peer data could cause extreme factor betas (e.g., -58.22 momentum beta) by limiting regression windows to only 2 observations instead of the full available data.
+
+**Problem Solved**: The `filter_valid_tickers()` function now ensures that subindustry peers have ≥ target ticker's observations, preventing regression window limitations and ensuring stable factor betas.
+
 ### Core Design Principles
 
 - **Modularity**: Each component has a single responsibility and clear interfaces
@@ -97,14 +103,33 @@ risk_module/
 2. Data Retrieval
    ticker list → data_loader.py → cached/API price data
 
-3. Factor Analysis
+3. Data Quality Validation
+   peer groups → proxy_builder.py → filtered valid peers
+
+4. Factor Analysis
    price data → factor_utils.py → factor returns and betas
 
-4. Risk Calculation
+5. Risk Calculation
    factor data + weights → portfolio_risk.py → risk metrics
 
-5. Reporting
+6. Reporting
    risk metrics → helpers_display.py → formatted output
+```
+
+### Data Quality Validation Flow
+
+```
+1. Peer Generation
+   GPT → generate_subindustry_peers() → candidate peer list
+
+2. Individual Validation
+   candidate peers → filter_valid_tickers() → peers with ≥3 observations
+
+3. Peer Group Validation
+   valid peers → filter_valid_tickers(target_ticker) → peers with ≥ target observations
+
+4. Factor Calculation
+   validated peers → fetch_peer_median_monthly_returns() → stable factor data
 ```
 
 ### Single Stock Analysis Flow
@@ -198,6 +223,27 @@ RAM Cache (LRU) → Disk Cache (Parquet) → Network (FMP API)
 - Factor beta calculation
 - Idiosyncratic risk estimation
 - Factor contribution analysis
+
+### 5. Data Quality Validation (`proxy_builder.py`)
+
+**Purpose**: Ensures data quality and prevents unstable factor calculations
+
+**Key Functions**:
+- `filter_valid_tickers()`: Validates ticker data quality and peer group consistency
+- `get_subindustry_peers_from_ticker()`: GPT-generated peer selection with validation
+- `inject_subindustry_peers_into_yaml()`: Peer injection with quality checks
+
+**Validation Criteria**:
+- **Individual Ticker**: ≥3 price observations for returns calculation
+- **Peer Group**: Each peer must have ≥ target ticker's observations
+- **Regression Stability**: Prevents extreme factor betas from insufficient data
+- **Automatic Filtering**: Removes problematic peers during proxy generation
+
+**Benefits**:
+- Prevents regression window limitations
+- Ensures stable factor betas
+- Maintains data consistency across factors
+- Automatic quality control for GPT-generated peers
 
 ### 5. Execution Layer
 

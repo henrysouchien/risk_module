@@ -194,6 +194,17 @@ stock_factor_proxies:
     subindustry: [PEER1, PEER2, PEER3]  # Sub-industry peers
 ```
 
+### Data Quality Validation
+
+The system includes robust data quality validation to ensure stable factor calculations:
+
+- **Individual Ticker Validation**: Each ticker must have ≥3 price observations for returns calculation
+- **Peer Group Validation**: Subindustry peers must have ≥ target ticker's observations to prevent regression window limitations
+- **Automatic Filtering**: Problematic peers are automatically filtered out during proxy generation
+- **Stable Factor Betas**: Prevents extreme factor betas caused by insufficient peer data
+
+This validation ensures that factor regressions use the full available data window and produce stable, reliable results.
+
 ### Risk Limit Customization
 
 Adjust risk limits in `risk_limits.yaml` to match your risk tolerance:
