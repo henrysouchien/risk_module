@@ -39,7 +39,10 @@ from risk_helpers import (
     calc_max_factor_betas
 )
 from proxy_builder import inject_all_proxies
-from gpt_helpers import interpret_portfolio_risk
+from gpt_helpers import (
+    interpret_portfolio_risk,
+    generate_subindustry_peers,
+)
 
 def run_and_interpret(portfolio_yaml: str):
     """
