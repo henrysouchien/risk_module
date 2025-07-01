@@ -14,6 +14,57 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 - **Risk Limit Monitoring**: Get alerts when your portfolio exceeds your risk tolerance
 - **Centralized Settings**: Consistent analysis across different portfolios
 
+## 🤖 AI Assistant Guidelines
+
+**For AI assistants helping users with this risk module:**
+
+**Key Functions to Know:**
+- `inject_all_proxies()` - Set up factor proxies for new portfolios (required before analysis)
+- `run_portfolio()` - Full portfolio analysis with risk decomposition
+- `run_stock()` - Single stock analysis and factor exposure
+- `run_what_if()` - Scenario testing for portfolio changes
+- `run_min_variance()` - Lowest risk portfolio optimization
+- `run_max_return()` - Maximum return portfolio optimization
+- `portfolio_risk_score()` - Risk scoring (0-100) with recommendations
+
+**Common User Requests:**
+- "Set up a new portfolio" → Use `inject_all_proxies()` first, then `run_portfolio()`
+- "Analyze my portfolio risk" → Use `run_portfolio()` function
+- "Analyze a single stock" → Use `run_stock()` function
+- "What if I reduce position X?" → Use `run_what_if()` function
+- "Optimize for minimum risk" → Use `run_min_variance()` function
+- "Optimize for maximum return" → Use `run_max_return()` function
+- "What's my risk score?" → Use `portfolio_risk_score()` function
+- "Why is my risk score low?" → Check factor exposures and concentration
+- "How do I improve my portfolio?" → Review risk score breakdown and recommendations
+
+**Key Configuration Files:**
+- `portfolio.yaml` - Portfolio weights and factor proxies
+- `risk_limits.yaml` - Risk tolerance settings
+- `settings.py` - Default parameters
+
+**Risk Score Interpretation:**
+- 90-100: Excellent (monitor and maintain)
+- 80-89: Good (minor adjustments may be needed)
+- 70-79: Fair (consider risk reduction)
+- 60-69: Poor (significant action recommended)
+- 0-59: Very Poor (immediate action required)
+
+**Common Issues:**
+- NaN values → Insufficient data for peer analysis
+- High systematic risk → Factor variance > 30% limit
+- Low risk score → Check concentration and factor exposures
+- Optimization infeasible → Risk limits too restrictive
+
+**Function Parameters:**
+- `run_portfolio()` - No parameters, reads from portfolio.yaml
+- `run_stock(ticker, start_date=None, end_date=None)` - Analyze single stock
+- `run_what_if(portfolio_changes)` - Test portfolio modifications
+- `run_min_variance()` - Optimize for minimum risk
+- `run_max_return(expected_returns)` - Optimize for maximum return
+- `portfolio_risk_score()` - Returns (score, breakdown, recommendations)
+- `inject_all_proxies(use_gpt_subindustry=False)` - Set up factor proxies
+
 ## 📊 What It Does
 
 This risk module helps you make better investment decisions by:
@@ -83,12 +134,45 @@ risk_module/
 
 ## 📖 Usage
 
+### Quick Start
+
+1. **Set up a new portfolio**:
+   ```python
+   from proxy_builder import inject_all_proxies
+   from run_risk import run_portfolio
+   
+   # Set up factor proxies for new portfolio
+   inject_all_proxies(use_gpt_subindustry=True)
+   
+   # Run full portfolio analysis
+   run_portfolio()
+   ```
+
+2. **Analyze existing portfolio**:
+   ```python
+   from run_risk import run_portfolio
+   
+   # Run analysis on existing portfolio.yaml
+   run_portfolio()
+   ```
+
+3. **Get risk score**:
+   ```python
+   from portfolio_risk_score import portfolio_risk_score
+   
+   # Get 0-100 risk score with recommendations
+   score, breakdown = portfolio_risk_score()
+   ```
+
 ### Portfolio Analysis
 
 Run a complete portfolio risk analysis:
 
-```bash
-python run_portfolio_risk.py
+```python
+from run_risk import run_portfolio
+
+# Full portfolio analysis with risk decomposition
+run_portfolio()
 ```
 
 This will:
@@ -102,8 +186,22 @@ This will:
 
 Analyze individual stock risk profile:
 
-```bash
-python run_single_stock_profile.py
+```python
+from run_risk import run_stock
+
+# Single stock analysis
+run_stock("AAPL")  # Analyze Apple stock
+```
+
+### New Portfolio Setup
+
+For new portfolios, set up factor proxies first:
+
+```python
+from proxy_builder import inject_all_proxies
+
+# Set up factor proxies (required for new portfolios)
+inject_all_proxies(use_gpt_subindustry=True)
 ```
 
 ### Configuration
@@ -249,6 +347,125 @@ portfolio_limits:
 concentration_limits:
   max_single_stock_weight: 0.25  # Maximum single position size for diversification
 ```
+
+## 🛡️ Risk Management Framework
+
+### Risk Limits Framework
+
+The risk management system uses a comprehensive framework of limits designed to control portfolio risk across multiple dimensions. These limits are based on fundamental risk management principles and protect against various types of portfolio losses.
+
+#### Core Risk Limit Categories
+
+**1. Overall Portfolio Risk Limits**
+
+- **Volatility Limit (40%)**: Control total portfolio risk and align with risk tolerance
+- **Loss Limit (-25%)**: Set maximum acceptable portfolio loss and define risk budget
+
+**2. Concentration Risk Limits**
+
+- **Single-Stock Weight Limit (40%)**: "Limit risk from errors" - prevent single-stock blowups
+- **Herfindahl Index Monitoring**: Measure portfolio concentration (target: < 0.15)
+
+**3. Factor Risk Exposure Limits**
+
+- **Factor Variance Contribution (30%)**: Control systematic risk exposure
+- **Market Variance Contribution (50%)**: Control market beta exposure
+- **Industry Variance Contribution (30%)**: Prevent sector concentration
+
+**4. Factor Beta Limits**
+
+- **Market Beta Limit (0.77)**: Derived from loss limit ÷ worst market loss
+- **Momentum Beta Limit (0.79)**: Control momentum factor exposure
+- **Value Beta Limit (0.55)**: Control value factor exposure
+- **Industry Beta Limits (Varies)**: Each industry has different volatility characteristics
+
+#### Risk Limit Setting Process
+
+1. **Define Risk Tolerance**: Set maximum acceptable portfolio loss and volatility tolerance
+2. **Calculate Factor Limits**: Analyze historical factor performance and derive beta limits
+3. **Set Variance Limits**: Determine acceptable systematic risk exposure
+4. **Monitor and Adjust**: Regularly review limit breaches and adjust as needed
+
+#### Interpreting Limit Breaches
+
+- **PASS**: Portfolio meets risk limit
+- **FAIL**: Portfolio exceeds risk limit, action required
+- **Risk Score Impact**: Limit breaches reduce overall risk score
+- **Action Recommendations**: Specific guidance for each type of breach
+
+### Risk Scoring Framework
+
+The portfolio risk score provides a comprehensive 0-100 rating that evaluates portfolio risk across multiple dimensions. Similar to a credit score, it combines various risk metrics into a single actionable number with clear categories and recommendations.
+
+#### Risk Score Components
+
+The risk score is calculated using four main components:
+
+1. **Portfolio Volatility (30% weight)**: Based on actual volatility vs. limit
+2. **Concentration Risk (20% weight)**: Based on max weight and Herfindahl Index
+3. **Factor Exposure Risk (25% weight)**: Average score across all factor betas
+4. **Systematic Risk (25% weight)**: Based on factor variance contribution vs. limit
+
+#### Risk Score Categories
+
+| Score Range | Category | Description | Action Required |
+|-------------|----------|-------------|-----------------|
+| **90-100** | **Excellent** | Very low risk portfolio | Monitor and maintain |
+| **80-89** | **Good** | Low risk portfolio | Minor adjustments may be needed |
+| **70-79** | **Fair** | Moderate risk portfolio | Consider risk reduction |
+| **60-69** | **Poor** | High risk portfolio | Significant action recommended |
+| **0-59** | **Very Poor** | Very high risk portfolio | Immediate action required |
+
+#### Scoring Methodology
+
+**Portfolio Volatility Score (30%)**
+- Score 100: Volatility ≤ 50% of limit (very low risk)
+- Score 80: Volatility ≤ 75% of limit (low risk)
+- Score 60: Volatility ≤ 90% of limit (moderate risk)
+- Score 40: Volatility ≤ 100% of limit (high risk)
+- Score 0: Volatility > limit (over limit)
+
+**Concentration Risk Score (20%)**
+- **Max Weight Component**: Based on largest position vs. limit
+- **Herfindahl Index Component**: Score = max(0, 100 - (HHI × 100))
+- **Combined Score**: Weighted average with bonus for good concentration
+
+**Factor Exposure Risk Score (25%)**
+- **Calculation**: Average score across all factor betas
+- **Factors Evaluated**: Market, momentum, value, and industry betas
+- **Scoring**: Based on beta vs. respective limits
+
+**Systematic Risk Score (25%)**
+- **Calculation**: Based on factor variance contribution vs. limit
+- **Linear Penalty**: For exceeding limits using formula: `max(0, 40 - 80 × (factor_var_ratio - 1.0))`
+
+#### Action Recommendations
+
+**For Poor/Very Poor Scores (0-69)**
+- Identify primary risk factors from score breakdown
+- Reduce largest positions if concentration is high
+- Add defensive positions if volatility is high
+- Diversify sectors if systematic risk is high
+- Consider portfolio optimization (min variance or max return)
+
+**For Fair Scores (70-79)**
+- Target specific weaknesses from component scores
+- Gradual position adjustments (don't make dramatic changes)
+- Add diversification with new positions in different sectors
+- Review risk tolerance to ensure limits match strategy
+
+**For Good/Excellent Scores (80-100)**
+- Regular monitoring and monthly reviews
+- Rebalancing to maintain target weights
+- Risk limit review to ensure limits remain appropriate
+- Performance tracking to ensure risk-adjusted returns
+
+#### Integration with Portfolio Management
+
+- **Risk Score Updates**: Monthly or after significant changes
+- **Decision Making**: Use risk score to guide new positions, sizing, and rebalancing
+- **Reporting**: Include risk score and breakdown in client reports and management reviews
+- **Customization**: Adjust component weights and thresholds for different strategies
 
 ## 📐 Mathematical Reference
 
@@ -461,9 +678,27 @@ DEFAULT:
 
 The system includes several ways to test your portfolio analysis:
 
-1. **Portfolio Analysis**: `python run_portfolio_risk.py` - Get a complete risk profile of your portfolio
-2. **Single Stock Profile**: `python run_single_stock_profile.py` - Analyze individual stocks for buy/sell decisions
-3. **Risk Runner**: `python run_risk.py` - Flexible risk analysis with different scenarios
+```python
+from run_risk import run_portfolio, run_stock, run_what_if, run_min_variance, run_max_return
+from portfolio_risk_score import portfolio_risk_score
+
+# 1. Full portfolio analysis
+run_portfolio()
+
+# 2. Single stock analysis
+run_stock("AAPL")
+
+# 3. What-if scenario testing
+changes = {"AAPL": 0.05, "SGOV": 0.10}  # Reduce AAPL, add SGOV
+run_what_if(changes)
+
+# 4. Portfolio optimization
+run_min_variance()  # Minimum risk portfolio
+run_max_return()    # Maximum return portfolio
+
+# 5. Risk scoring
+score, breakdown, recommendations = portfolio_risk_score()
+```
 
 Each provides actionable insights to help you make better investment decisions.
 
