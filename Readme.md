@@ -1,26 +1,28 @@
 # Risk Module 🧠
 
+**Purpose**: To help people make better investment decisions by making portfolio risk understandable and actionable through AI-powered analysis and guidance.
+
 A comprehensive portfolio and single-stock risk analysis system that provides multi-factor regression diagnostics, risk decomposition, and portfolio optimization capabilities.
 
 ## 🚀 Features
 
-- **Multi-Factor Risk Analysis**: Comprehensive factor modeling with market, momentum, value, and industry factors
-- **Portfolio Risk Decomposition**: Detailed variance attribution and risk contribution analysis
-- **Single-Stock Risk Profiles**: Individual stock factor exposure and risk metrics
-- **Data Caching**: Intelligent caching system for efficient data retrieval from Financial Modeling Prep (FMP)
-- **YAML Configuration**: Flexible portfolio and risk limit configuration
-- **Risk Limit Monitoring**: Automated risk limit checking and alerts
-- **Centralized Settings**: Default configuration management
+- **Multi-Factor Risk Analysis**: Understand how market forces affect your portfolio to make better allocation decisions
+- **Portfolio Risk Decomposition**: See which positions drive your risk to know where to focus your risk management
+- **Single-Stock Risk Profiles**: Analyze individual stocks to make informed buy/sell decisions
+- **Data Caching**: Fast, reliable data access for consistent analysis
+- **YAML Configuration**: Easy portfolio setup and risk limit management
+- **Risk Limit Monitoring**: Get alerts when your portfolio exceeds your risk tolerance
+- **Centralized Settings**: Consistent analysis across different portfolios
 
 ## 📊 What It Does
 
-This risk module provides:
+This risk module helps you make better investment decisions by:
 
-1. **Portfolio Analysis**: Complete risk decomposition including volatility, factor exposures, and variance attribution
-2. **Single-Stock Diagnostics**: Detailed factor regression analysis for individual securities
-3. **Risk Monitoring**: Automated checking against configurable risk limits
-4. **Data Management**: Efficient caching and retrieval of market data from FMP API
-5. **Configuration Management**: Centralized default settings and configuration
+1. **Portfolio Analysis**: Understanding your overall risk profile to make informed allocation decisions
+2. **Single-Stock Diagnostics**: Evaluating individual stocks to make better buy/sell choices
+3. **Risk Monitoring**: Staying within your risk tolerance to avoid unpleasant surprises
+4. **Data Management**: Ensuring reliable, consistent analysis for confident decision-making
+5. **Configuration Management**: Maintaining consistent risk parameters across your portfolios
 
 ## 🏗️ Architecture
 
@@ -191,22 +193,22 @@ variance_limits:
 
 ### Portfolio Risk Summary
 
-The system generates comprehensive risk reports including:
+The system generates actionable risk insights including:
 
-- **Volatility Analysis**: Portfolio and individual position volatility
-- **Factor Exposures**: Market, momentum, value, and industry factor betas
-- **Risk Decomposition**: Variance attribution by factor and position
-- **Concentration Analysis**: Herfindahl index and position concentration
-- **Risk Limit Monitoring**: Automated checking against defined limits
+- **Volatility Analysis**: Understand your portfolio's risk level to make informed allocation decisions
+- **Factor Exposures**: See your market bets to decide if you want to hedge or adjust exposures
+- **Risk Decomposition**: Identify what's driving your risk to focus your management efforts
+- **Concentration Analysis**: Check your diversification to decide if you need more positions
+- **Risk Limit Monitoring**: Stay within your comfort zone to avoid unpleasant surprises
 
 ### Single Stock Profile
 
-Individual stock analysis provides:
+Individual stock analysis helps you make better buy/sell decisions by providing:
 
-- **Factor Regression**: Multi-factor regression diagnostics
-- **Risk Metrics**: Volatility, beta, and idiosyncratic risk
-- **Factor Contributions**: Detailed factor exposure breakdown
-- **Peer Comparison**: Relative performance vs. factor proxies
+- **Factor Regression**: Understand how market forces affect this stock to make informed decisions
+- **Risk Metrics**: See the stock's risk profile to decide if it fits your portfolio
+- **Factor Contributions**: Identify what's driving the stock's performance to assess its role
+- **Peer Comparison**: Compare against similar stocks to make better relative value decisions
 
 ## 🔧 Advanced Usage
 
@@ -226,26 +228,26 @@ stock_factor_proxies:
 
 ### Data Quality Validation
 
-The system includes robust data quality validation to ensure stable factor calculations:
+The system includes robust data quality validation to ensure you get reliable insights for confident decision-making:
 
-- **Individual Ticker Validation**: Each ticker must have ≥3 price observations for returns calculation
-- **Peer Group Validation**: Subindustry peers must have ≥ target ticker's observations to prevent regression window limitations
-- **Automatic Filtering**: Problematic peers are automatically filtered out during proxy generation
-- **Stable Factor Betas**: Prevents extreme factor betas caused by insufficient peer data
+- **Individual Ticker Validation**: Ensures each stock has enough data for accurate risk assessment
+- **Peer Group Validation**: Prevents unreliable comparisons that could lead to bad decisions
+- **Automatic Filtering**: Removes problematic data so you can trust the analysis
+- **Stable Factor Betas**: Ensures risk metrics are reliable for making allocation decisions
 
-This validation ensures that factor regressions use the full available data window and produce stable, reliable results.
+This validation ensures that your risk analysis is trustworthy, so you can make decisions with confidence.
 
 ### Risk Limit Customization
 
-Adjust risk limits in `risk_limits.yaml` to match your risk tolerance:
+Set your risk tolerance in `risk_limits.yaml` to get alerts when your portfolio exceeds your comfort zone:
 
 ```yaml
 portfolio_limits:
-  max_volatility: 0.35    # Maximum portfolio volatility
-  max_loss: -0.20         # Maximum expected loss
+  max_volatility: 0.35    # Maximum portfolio volatility you're comfortable with
+  max_loss: -0.20         # Maximum loss you can tolerate
 
 concentration_limits:
-  max_single_stock_weight: 0.25  # Maximum single position weight
+  max_single_stock_weight: 0.25  # Maximum single position size for diversification
 ```
 
 ## 📐 Mathematical Reference
@@ -257,21 +259,21 @@ concentration_limits:
 σ_p = √(w^T Σ w)
 ```
 *Function: `compute_portfolio_volatility()`*
-Total portfolio risk measured as the square root of weighted covariance matrix.
+**Purpose**: Measures how much your portfolio can swing up or down, helping you understand if the risk level matches your comfort zone and timeline.
 
 **Risk Contributions**
 ```
 RC_i = w_i × (Σw)_i / σ_p
 ```
 *Function: `compute_risk_contributions()`*
-Each asset's contribution to total portfolio volatility, showing which positions drive risk.
+**Purpose**: Shows which positions are driving your portfolio's risk, helping you decide which stocks to reduce if you need to lower overall risk.
 
 **Herfindahl Index (Concentration)**
 ```
 H = Σ(w_i²)
 ```
 *Function: `compute_herfindahl()`*
-Portfolio concentration measure where 0 = fully diversified, 1 = single asset.
+**Purpose**: Measures how diversified your portfolio is, helping you decide if you're over-concentrated in too few positions and need to add more holdings.
 
 ### Factor Analysis
 
@@ -280,21 +282,21 @@ Portfolio concentration measure where 0 = fully diversified, 1 = single asset.
 β_i,f = Cov(r_i, r_f) / Var(r_f)
 ```
 *Function: `compute_stock_factor_betas()`*
-Sensitivity of stock returns to factor returns, measured via linear regression.
+**Purpose**: Shows how sensitive your stocks are to market forces (like tech sector moves or value vs growth trends), helping you understand if you're taking unintended bets.
 
 **Portfolio Factor Beta**
 ```
 β_p,f = Σ(w_i × β_i,f)
 ```
 *Function: `build_portfolio_view()`*
-Weighted average of individual stock betas, showing portfolio's factor exposure.
+**Purpose**: Shows your overall exposure to market factors, helping you decide if you want to hedge certain exposures or if you're comfortable with your current market bets.
 
 **Excess Return**
 ```
 r_excess = r_etf - r_market
 ```
 *Function: `fetch_excess_return()`*
-Style factor returns relative to market benchmark, used for momentum and value factors.
+**Purpose**: Measures how much a factor (like momentum or value) moves independently of the market, helping you understand if you're getting compensated for taking factor-specific risk.
 
 ### Variance Decomposition
 
@@ -302,27 +304,27 @@ Style factor returns relative to market benchmark, used for momentum and value f
 ```
 σ²_p = σ²_factor + σ²_idiosyncratic
 ```
-Portfolio variance decomposed into systematic (factor) and unsystematic (idiosyncratic) components.
+**Purpose**: Breaks down your portfolio's risk into what you can control (stock selection) vs. what you can't (market factors), helping you focus your risk management efforts.
 
 **Factor Variance**
 ```
 σ²_factor = Σ(w_i² × β_i,f² × σ_f²)
 ```
 *Function: `compute_portfolio_variance_breakdown()`*
-Systematic risk contribution from factor exposures, weighted by position sizes and factor volatilities.
+**Purpose**: Shows how much of your risk comes from market factors you can't control, helping you decide if you need to hedge or if you're comfortable with systematic risk exposure.
 
 **Idiosyncratic Variance**
 ```
 σ²_idio = Σ(w_i² × σ²_idio,i)
 ```
-Unsystematic risk from individual stock-specific factors, diversifiable through position sizing.
+**Purpose**: Shows how much of your risk comes from individual stock choices, helping you decide if you need more diversification or if your stock selection is adding value.
 
 **Euler Variance Contribution**
 ```
 VC_i = w_i × (Σw)_i / Σ(w_i × (Σw)_i)
 ```
 *Function: `compute_euler_variance_percent()`*
-Marginal contribution of each asset to total portfolio variance, summing to 100%.
+**Purpose**: Shows which positions contribute most to your portfolio's ups and downs, helping you identify where to focus your risk management efforts.
 
 ### Volatility Calculations
 
@@ -352,27 +354,27 @@ Maximum allowable portfolio volatility constraint for risk management.
 ```
 |Σ(w_i × β_i,f)| ≤ β_max,f
 ```
-Maximum allowable exposure to each factor, preventing excessive systematic risk.
+**Purpose**: Limits your exposure to market factors to prevent taking too much systematic risk.
 
 **Weight Constraint**
 ```
 0 ≤ w_i ≤ w_max
 ```
-Individual position size limits for concentration risk management.
+**Purpose**: Prevents over-concentration in single positions to maintain proper diversification.
 
 ## 🌐 Web Application
 
 ### Flask Web App (`app.py`)
 
-The risk module includes a production-ready Flask web application with:
+The risk module includes a production-ready Flask web application that makes risk analysis accessible to anyone:
 
 **Features:**
-- **Portfolio Configuration**: Web-based YAML editor for portfolio setup
-- **Risk Analysis**: Execute portfolio risk analysis through web interface
-- **Rate Limiting**: Tiered access with public/registered/paid user limits
-- **API Key Management**: Secure key generation and validation
-- **Usage Tracking**: Comprehensive logging and analytics
-- **Export Functionality**: Download analysis results
+- **Portfolio Configuration**: Easy web-based setup for your portfolio
+- **Risk Analysis**: Get actionable insights through a simple web interface
+- **Rate Limiting**: Fair usage limits to ensure quality service for all users
+- **API Key Management**: Secure access to protect your data
+- **Usage Tracking**: Monitor your analysis history and trends
+- **Export Functionality**: Download your risk reports for record-keeping
 
 **Access Tiers:**
 - **Public**: Limited daily usage (5 analyses/day)
@@ -392,14 +394,14 @@ http://localhost:5000
 
 ### Plaid Financial Data Integration (`plaid_loader.py`)
 
-Automated portfolio data import from financial institutions:
+Automatically import your portfolio data from your brokerage accounts to save time and ensure accuracy:
 
 **Features:**
-- **Multi-Institution Support**: Connect to multiple brokerage accounts
-- **Automatic Holdings Import**: Fetch current positions and balances
-- **Cash Position Mapping**: Convert cash to appropriate ETF proxies
-- **AWS Secrets Management**: Secure storage of access tokens
-- **Portfolio YAML Generation**: Automatic conversion to risk module format
+- **Multi-Institution Support**: Connect all your brokerage accounts in one place
+- **Automatic Holdings Import**: Get your current positions without manual entry
+- **Cash Position Mapping**: Properly account for cash positions in your risk analysis
+- **AWS Secrets Management**: Keep your financial data secure and private
+- **Portfolio YAML Generation**: Convert your holdings to the right format automatically
 
 **Supported Institutions:**
 - Interactive Brokers
@@ -457,13 +459,13 @@ DEFAULT:
 
 ## 🧪 Testing
 
-The system includes several test entry points:
+The system includes several ways to test your portfolio analysis:
 
-1. **Portfolio Analysis**: `python run_portfolio_risk.py`
-2. **Single Stock Profile**: `python run_single_stock_profile.py`
-3. **Risk Runner**: `python run_risk.py`
+1. **Portfolio Analysis**: `python run_portfolio_risk.py` - Get a complete risk profile of your portfolio
+2. **Single Stock Profile**: `python run_single_stock_profile.py` - Analyze individual stocks for buy/sell decisions
+3. **Risk Runner**: `python run_risk.py` - Flexible risk analysis with different scenarios
 
-Each provides detailed diagnostics and risk metrics.
+Each provides actionable insights to help you make better investment decisions.
 
 ## 📁 Project Structure
 
@@ -532,18 +534,18 @@ For questions or issues:
 
 ## 🚀 Future Enhancements
 
-- [ ] Streamlit dashboard integration
+- [ ] AI-powered conversational interface for easier decision-making
 - [X] GPT-powered peer suggestion system ✅ **Implemented**
 - [X] Support for cash exposure and short positions ✅ **Implemented**
 - [ ] Web dashboard interface (Flask app) 🔄 **In Development** - Figma UI design in progress
 - [X] Plaid financial data integration ✅ **Implemented**
-- [ ] Real-time risk monitoring
-- [ ] GPT-powered suggestions connected to what-if analysis
-- [ ] Additional factor models (quality, size, etc.)
-- [ ] Backtesting capabilities
-- [ ] Risk attribution visualization
-- [ ] Visualization to compare current vs. suggested vs. historical portfolios
-- [ ] Advanced portfolio optimization features
+- [ ] Real-time risk monitoring and alerts
+- [ ] AI-powered portfolio recommendations and what-if analysis
+- [ ] Additional factor models (quality, size, etc.) for more comprehensive analysis
+- [ ] Backtesting capabilities to validate investment decisions
+- [ ] Interactive risk attribution visualization
+- [ ] Portfolio comparison tools (current vs. suggested vs. historical)
+- [ ] Advanced portfolio optimization with multiple objectives
 
 ---
 
