@@ -272,12 +272,17 @@ For questions or issues:
 ## 🚀 Future Enhancements
 
 - [ ] Streamlit dashboard integration
-- [ ] GPT-powered peer suggestion system
-- [ ] Support for cash exposure and short positions
+- [X] GPT-powered peer suggestion system ✅ **Implemented**
+- [X] Support for cash exposure and short positions ✅ **Implemented**
 - [ ] Real-time risk monitoring
+- [ ] GPT-powered suggestions connected to what-if analysis
 - [ ] Additional factor models (quality, size, etc.)
 - [ ] Backtesting capabilities
 - [ ] Risk attribution visualization
+- [ ] Visuzalization to compare current vs. suggested vs. historical portfolios
+- [ ] Web dashboard interface (Flask app in progress)
+- [ ] Plaid financial data integration (in development)
+- [ ] Advanced portfolio optimization features
 
 ---
 
