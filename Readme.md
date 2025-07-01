@@ -65,7 +65,12 @@ risk_module/
 
 2. **Install dependencies**:
    ```bash
-   pip install pandas numpy statsmodels requests python-dotenv pyarrow
+   pip install -r requirements.txt
+   ```
+
+   Or install manually:
+   ```bash
+   pip install pandas numpy statsmodels requests python-dotenv pyarrow streamlit pyyaml flask flask-limiter redis
    ```
 
 3. **Configure API key**:
@@ -113,6 +118,31 @@ PORTFOLIO_DEFAULTS = {
 ```
 
 These defaults are used when specific dates aren't provided in portfolio configurations.
+
+#### Date Logic and Calculation Windows
+
+The risk module uses a consistent date system across all calculations:
+
+**Primary Portfolio System:**
+- **Source**: Dates are read from `portfolio.yaml` (`start_date` and `end_date`)
+- **Usage**: All portfolio risk calculations, factor regressions, and optimizations use this window
+- **Consistency**: Ensures all calculations use the same historical period for accurate comparisons
+
+**Fallback System:**
+- **Default**: `PORTFOLIO_DEFAULTS` from `settings.py` when portfolio dates aren't specified
+- **Proxy Generation**: GPT peer generation and validation use portfolio dates for consistency
+- **Data Quality**: Peer filtering ensures all tickers have sufficient observations within the date window
+
+**Independent Analysis:**
+- **Single Stock**: `run_stock()` uses flexible dates (5-year default or explicit parameters)
+- **Historical Analysis**: `calc_max_factor_betas()` uses 10-year lookback for worst-case scenarios
+- **Purpose**: These functions serve different use cases and appropriately use different date logic
+
+**Calculation Alignment:**
+- All factor calculations (market, momentum, value, industry) use the same date window
+- Peer median returns are calculated over the same period as the target ticker
+- Regression windows are consistent across all securities in the portfolio
+- Data quality validation ensures stable factor betas by preventing insufficient observation windows
 
 #### Portfolio Configuration (`portfolio.yaml`)
 
@@ -218,6 +248,213 @@ concentration_limits:
   max_single_stock_weight: 0.25  # Maximum single position weight
 ```
 
+## 📐 Mathematical Reference
+
+### Portfolio Volatility & Risk
+
+**Portfolio Volatility**
+```
+σ_p = √(w^T Σ w)
+```
+*Function: `compute_portfolio_volatility()`*
+Total portfolio risk measured as the square root of weighted covariance matrix.
+
+**Risk Contributions**
+```
+RC_i = w_i × (Σw)_i / σ_p
+```
+*Function: `compute_risk_contributions()`*
+Each asset's contribution to total portfolio volatility, showing which positions drive risk.
+
+**Herfindahl Index (Concentration)**
+```
+H = Σ(w_i²)
+```
+*Function: `compute_herfindahl()`*
+Portfolio concentration measure where 0 = fully diversified, 1 = single asset.
+
+### Factor Analysis
+
+**Factor Beta**
+```
+β_i,f = Cov(r_i, r_f) / Var(r_f)
+```
+*Function: `compute_stock_factor_betas()`*
+Sensitivity of stock returns to factor returns, measured via linear regression.
+
+**Portfolio Factor Beta**
+```
+β_p,f = Σ(w_i × β_i,f)
+```
+*Function: `build_portfolio_view()`*
+Weighted average of individual stock betas, showing portfolio's factor exposure.
+
+**Excess Return**
+```
+r_excess = r_etf - r_market
+```
+*Function: `fetch_excess_return()`*
+Style factor returns relative to market benchmark, used for momentum and value factors.
+
+### Variance Decomposition
+
+**Total Portfolio Variance**
+```
+σ²_p = σ²_factor + σ²_idiosyncratic
+```
+Portfolio variance decomposed into systematic (factor) and unsystematic (idiosyncratic) components.
+
+**Factor Variance**
+```
+σ²_factor = Σ(w_i² × β_i,f² × σ_f²)
+```
+*Function: `compute_portfolio_variance_breakdown()`*
+Systematic risk contribution from factor exposures, weighted by position sizes and factor volatilities.
+
+**Idiosyncratic Variance**
+```
+σ²_idio = Σ(w_i² × σ²_idio,i)
+```
+Unsystematic risk from individual stock-specific factors, diversifiable through position sizing.
+
+**Euler Variance Contribution**
+```
+VC_i = w_i × (Σw)_i / Σ(w_i × (Σw)_i)
+```
+*Function: `compute_euler_variance_percent()`*
+Marginal contribution of each asset to total portfolio variance, summing to 100%.
+
+### Volatility Calculations
+
+**Annualized Volatility**
+```
+σ_annual = σ_monthly × √12
+```
+*Function: `compute_volatility()`*
+Monthly volatility scaled to annual basis using square root of time rule.
+
+**Monthly Returns**
+```
+r_t = (P_t - P_{t-1}) / P_{t-1}
+```
+*Function: `calc_monthly_returns()`*
+Percentage change in price from one month-end to the next.
+
+### Optimization Constraints
+
+**Portfolio Variance Constraint**
+```
+w^T Σ w ≤ σ_max²
+```
+Maximum allowable portfolio volatility constraint for risk management.
+
+**Factor Beta Constraint**
+```
+|Σ(w_i × β_i,f)| ≤ β_max,f
+```
+Maximum allowable exposure to each factor, preventing excessive systematic risk.
+
+**Weight Constraint**
+```
+0 ≤ w_i ≤ w_max
+```
+Individual position size limits for concentration risk management.
+
+## 🌐 Web Application
+
+### Flask Web App (`app.py`)
+
+The risk module includes a production-ready Flask web application with:
+
+**Features:**
+- **Portfolio Configuration**: Web-based YAML editor for portfolio setup
+- **Risk Analysis**: Execute portfolio risk analysis through web interface
+- **Rate Limiting**: Tiered access with public/registered/paid user limits
+- **API Key Management**: Secure key generation and validation
+- **Usage Tracking**: Comprehensive logging and analytics
+- **Export Functionality**: Download analysis results
+
+**Access Tiers:**
+- **Public**: Limited daily usage (5 analyses/day)
+- **Registered**: Enhanced limits (15 analyses/day)
+- **Paid**: Full access (30 analyses/day)
+
+**Usage:**
+```bash
+# Start the web server
+python app.py
+
+# Access via browser
+http://localhost:5000
+```
+
+## 🔗 Additional Integrations
+
+### Plaid Financial Data Integration (`plaid_loader.py`)
+
+Automated portfolio data import from financial institutions:
+
+**Features:**
+- **Multi-Institution Support**: Connect to multiple brokerage accounts
+- **Automatic Holdings Import**: Fetch current positions and balances
+- **Cash Position Mapping**: Convert cash to appropriate ETF proxies
+- **AWS Secrets Management**: Secure storage of access tokens
+- **Portfolio YAML Generation**: Automatic conversion to risk module format
+
+**Supported Institutions:**
+- Interactive Brokers
+- Other Plaid-supported brokerages
+
+**Usage:**
+```python
+from plaid_loader import convert_plaid_df_to_yaml_input
+
+# Convert Plaid holdings to portfolio.yaml
+convert_plaid_df_to_yaml_input(
+    holdings_df,
+    output_path="portfolio.yaml",
+    dates={"start_date": "2020-01-01", "end_date": "2024-12-31"}
+)
+```
+
+### Cash Position Mapping (`cash_map.yaml`)
+
+Configuration for mapping cash positions to appropriate ETF proxies:
+
+```yaml
+proxy_by_currency:        # ETF proxy for each currency
+  USD: SGOV
+  EUR: ESTR
+  GBP: IB01
+
+alias_to_currency:        # Broker cash tickers → currency
+  CUR:USD: USD            # Interactive Brokers
+  USD CASH: USD
+  CASH: USD               # Generic fallback
+```
+
+### Factor Proxy Configuration
+
+**Industry Mapping (`industry_to_etf.yaml`):**
+```yaml
+"Technology": "XLK"
+"Healthcare": "XLV"
+"Financial Services": "XLF"
+# ... more industry mappings
+```
+
+**Exchange-Specific Proxies (`exchange_etf_proxies.yaml`):**
+```yaml
+NASDAQ:
+  market: "SPY"
+  momentum: "MTUM"
+  value: "IWD"
+DEFAULT:
+  market: "ACWX"
+  momentum: "IMTM"
+  value: "EFV"
+```
+
 ## 🧪 Testing
 
 The system includes several test entry points:
@@ -247,7 +484,15 @@ risk_module/
 ├── helpers_input.py         # Input processing utilities
 ├── risk_helpers.py          # Risk calculation helpers
 ├── portfolio_optimizer.py   # Portfolio optimization
-├── gpt_helpers.py              # GPT integration and peer generation
+├── proxy_builder.py         # Factor proxy generation and GPT peer integration
+├── gpt_helpers.py           # GPT integration and peer generation
+├── plaid_loader.py          # Plaid financial data integration
+├── app.py                   # Flask web application
+├── cash_map.yaml            # Cash position mapping configuration
+├── industry_to_etf.yaml     # Industry to ETF mapping
+├── exchange_etf_proxies.yaml # Exchange-specific ETF proxies
+├── what_if_portfolio.yaml   # What-if scenario configuration
+├── run_risk_summary_to_gpt_dev.py # GPT interpretation runner
 └── cache_prices/           # Cached price data (gitignored)
 ```
 
@@ -271,6 +516,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **requests**: HTTP library for API calls
 - **python-dotenv**: Environment variable management
 - **pyarrow**: Parquet file handling for caching
+- **streamlit**: Web dashboard framework
+- **pyyaml**: YAML configuration file handling
+- **flask**: Web application framework
+- **flask-limiter**: Rate limiting for web API
+- **redis**: Caching and session management
 
 ## 🆘 Support
 
@@ -285,14 +535,14 @@ For questions or issues:
 - [ ] Streamlit dashboard integration
 - [X] GPT-powered peer suggestion system ✅ **Implemented**
 - [X] Support for cash exposure and short positions ✅ **Implemented**
+- [X] Web dashboard interface (Flask app) ✅ **Implemented**
+- [X] Plaid financial data integration ✅ **Implemented**
 - [ ] Real-time risk monitoring
 - [ ] GPT-powered suggestions connected to what-if analysis
 - [ ] Additional factor models (quality, size, etc.)
 - [ ] Backtesting capabilities
 - [ ] Risk attribution visualization
-- [ ] Visuzalization to compare current vs. suggested vs. historical portfolios
-- [ ] Web dashboard interface (Flask app in progress)
-- [ ] Plaid financial data integration (in development)
+- [ ] Visualization to compare current vs. suggested vs. historical portfolios
 - [ ] Advanced portfolio optimization features
 
 ---

@@ -292,6 +292,59 @@ start_date = config.get('start_date', PORTFOLIO_DEFAULTS['start_date'])
 end_date = config.get('end_date', PORTFOLIO_DEFAULTS['end_date'])
 ```
 
+### Date Logic and Calculation Windows
+
+**System Architecture**:
+The risk module implements a three-tier date system for different calculation purposes:
+
+**1. Primary Portfolio System**:
+```python
+# Source: portfolio.yaml
+config = load_portfolio_config("portfolio.yaml")
+start_date = config["start_date"]  # e.g., "2019-05-31"
+end_date = config["end_date"]      # e.g., "2024-03-31"
+
+# Usage: All portfolio calculations
+summary = build_portfolio_view(weights, start_date, end_date, ...)
+```
+
+**2. Fallback System**:
+```python
+# Source: settings.py PORTFOLIO_DEFAULTS
+from settings import PORTFOLIO_DEFAULTS
+
+# Used when portfolio dates not specified
+start = start or PORTFOLIO_DEFAULTS["start_date"]
+end = end or PORTFOLIO_DEFAULTS["end_date"]
+```
+
+**3. Independent Analysis System**:
+```python
+# Single stock analysis (flexible dates)
+today = pd.Timestamp.today().normalize()
+start = start or today - pd.DateOffset(years=5)
+end = end or today
+
+# Historical worst-case analysis (long lookback)
+end_dt = datetime.today()
+start_dt = end_dt - pd.DateOffset(years=lookback_years)
+```
+
+**Calculation Consistency**:
+- **Factor Regressions**: All use same date window for stable betas
+- **Peer Validation**: Subindustry peers validated over same period as target
+- **Data Quality**: Minimum observation requirements prevent regression window limitations
+- **Optimization**: All portfolio optimizations use consistent date windows
+
+**Data Flow**:
+```
+portfolio.yaml → load_portfolio_config() → build_portfolio_view() → factor calculations
+     ↓
+PORTFOLIO_DEFAULTS (fallback) → proxy generation → peer validation
+     ↓
+Independent functions → flexible date logic for specific use cases
+```
+
 ### Portfolio Configuration (`portfolio.yaml`)
 
 **Structure**:
@@ -415,6 +468,106 @@ Position Risk Contribution = Weight × Marginal Risk Contribution
 Herfindahl Index = Σ(Weight²)
 ```
 
+## 📐 Mathematical Framework
+
+The risk module implements a comprehensive mathematical framework for portfolio risk analysis. For detailed mathematical formulas and their implementations, see the **Mathematical Reference** section in the README.md file.
+
+**Key Mathematical Components**:
+- **Portfolio Volatility**: `σ_p = √(w^T Σ w)`
+- **Factor Betas**: `β_i,f = Cov(r_i, r_f) / Var(r_f)`
+- **Risk Contributions**: `RC_i = w_i × (Σw)_i / σ_p`
+- **Variance Decomposition**: Total = Factor + Idiosyncratic
+- **Euler Variance**: Marginal variance contributions
+
+**Implementation Functions**:
+- `compute_portfolio_volatility()`: Portfolio risk calculation
+- `compute_stock_factor_betas()`: Factor exposure analysis
+- `compute_risk_contributions()`: Risk attribution
+- `compute_portfolio_variance_breakdown()`: Variance decomposition
+- `compute_euler_variance_percent()`: Marginal contributions
+
+## 🌐 Web Application Architecture
+
+### Flask Web App (`app.py`)
+
+**Production-Ready Features**:
+- **Multi-Tier Access Control**: Public/Registered/Paid user tiers with rate limiting
+- **Portfolio Configuration Interface**: Web-based YAML editor
+- **Risk Analysis Execution**: Server-side portfolio analysis
+- **API Key Management**: Secure key generation and validation
+- **Usage Analytics**: Comprehensive logging and tracking
+- **Export Functionality**: Download analysis results
+
+**Rate Limiting Strategy**:
+```python
+# Tiered rate limits
+limits = {
+    "public": "5 per day",
+    "registered": "15 per day", 
+    "paid": "30 per day"
+}
+```
+
+**Security Features**:
+- API key validation
+- Rate limiting by user tier
+- Error logging and monitoring
+- Secure token storage
+
+## 🔗 External Integrations
+
+### Plaid Financial Data Integration (`plaid_loader.py`)
+
+**Automated Portfolio Import**:
+- **Multi-Institution Support**: Connect to multiple brokerage accounts
+- **Real-Time Holdings**: Fetch current positions and balances
+- **Cash Position Mapping**: Convert cash to appropriate ETF proxies
+- **AWS Secrets Management**: Secure storage of access tokens
+- **Portfolio YAML Generation**: Automatic conversion to risk module format
+
+**Data Flow**:
+```
+Plaid API → Holdings Data → Cash Mapping → Portfolio YAML → Risk Analysis
+```
+
+**Supported Features**:
+- Interactive Brokers integration
+- Multi-currency support
+- Automatic cash gap detection
+- Portfolio consolidation
+
+### Cash Position Mapping (`cash_map.yaml`)
+
+**Configuration Structure**:
+```yaml
+proxy_by_currency:        # ETF proxy for each currency
+  USD: SGOV
+  EUR: ESTR
+  GBP: IB01
+
+alias_to_currency:        # Broker cash tickers → currency
+  CUR:USD: USD            # Interactive Brokers
+  USD CASH: USD
+  CASH: USD               # Generic fallback
+```
+
+**Usage**:
+- Maps broker-specific cash tickers to currencies
+- Converts cash positions to appropriate ETF proxies
+- Supports multi-currency portfolios
+
+### Factor Proxy Configuration
+
+**Industry Mapping (`industry_to_etf.yaml`)**:
+- Maps FMP industry classifications to representative ETFs
+- Supports custom industry definitions
+- Fallback to default proxies for unknown industries
+
+**Exchange-Specific Proxies (`exchange_etf_proxies.yaml`)**:
+- Exchange-specific factor proxy selection
+- Optimized for different market characteristics
+- Fallback to global proxies for international securities
+
 ## 🔌 API Integration
 
 ### Financial Modeling Prep (FMP)
@@ -504,9 +657,9 @@ Herfindahl Index = Σ(Weight²)
    - Real-time portfolio monitoring
    - Dynamic configuration updates
 
-2. **GPT Integration**:
-   - Automated peer suggestion
-   - Natural language risk reports
+2. **Advanced GPT Integration**:
+   - Automated peer suggestion ✅ **Implemented**
+   - Natural language risk reports ✅ **Implemented**
    - Intelligent factor selection
 
 3. **Advanced Risk Models**:
@@ -537,9 +690,9 @@ Herfindahl Index = Σ(Weight²)
    - Alternative data sources
 
 3. **User Experience**:
-   - Web-based interface
+   - Web-based interface ✅ **Implemented**
    - Mobile app support
-   - API endpoints for integration
+   - API endpoints for integration ✅ **Implemented**
 
 ## 📈 Status by Module
 
@@ -559,8 +712,14 @@ Herfindahl Index = Σ(Weight²)
 | Caching System | `data_loader.py` | ✅ Complete | Multi-level caching |
 | Display Utils | `helpers_display.py` | ✅ Working | Formatted output |
 | Input Utils | `helpers_input.py` | ✅ Working | Configuration parsing |
+| Portfolio Optimization | `portfolio_optimizer.py` | ✅ Working | Min variance and max return |
+| GPT Integration | `gpt_helpers.py` | ✅ Working | Peer generation and interpretation |
+| Proxy Builder | `proxy_builder.py` | ✅ Working | Factor proxy generation |
+| Web Application | `app.py` | ✅ Working | Flask web interface |
+| Plaid Integration | `plaid_loader.py` | ✅ Working | Financial data import |
+| Risk Helpers | `risk_helpers.py` | ✅ Working | Risk calculation utilities |
 
-## 🔗 Dependencies
+## 📦 Dependencies
 
 ### Core Dependencies
 
@@ -571,11 +730,69 @@ Herfindahl Index = Σ(Weight²)
 - **python-dotenv**: Environment variable management
 - **pyarrow**: Parquet file handling for caching
 
-### Optional Dependencies
+### Web Application Dependencies
 
-- **cvxpy**: Portfolio optimization (future)
-- **streamlit**: Web dashboard (future)
-- **plotly**: Interactive visualizations (future)
+- **flask**: Web application framework
+- **flask-limiter**: Rate limiting for web API
+- **redis**: Caching and session management
+- **streamlit**: Web dashboard framework (future)
+
+### External API Dependencies
+
+- **plaid**: Financial data integration
+- **openai**: GPT integration for peer generation
+- **boto3**: AWS Secrets Manager integration
+
+### Configuration Dependencies
+
+- **pyyaml**: YAML configuration file handling
+
+## 🛠️ Helper Utilities
+
+### Display Utilities (`helpers_display.py`)
+
+**Functions**:
+- `_drop_factors()`: Remove presentation-only factor rows
+- `_print_single_portfolio()`: Pretty-print risk and beta tables
+- `compare_risk_tables()`: Side-by-side risk table comparison
+- `compare_beta_tables()`: Factor beta table comparison
+
+**Usage**:
+```python
+from helpers_display import compare_risk_tables
+
+# Compare before/after risk metrics
+comparison = compare_risk_tables(old_risk_df, new_risk_df)
+```
+
+### Input Processing (`helpers_input.py`)
+
+**Functions**:
+- `parse_delta()`: Parse what-if scenario changes
+- `_parse_shift()`: Convert human-friendly shift strings to decimals
+
+**Supported Formats**:
+- `"+200bp"` → `0.02`
+- `"-75bps"` → `-0.0075`
+- `"1.5%"` → `0.015`
+- `"-0.01"` → `-0.01`
+
+**Precedence Rules**:
+1. YAML `new_weights:` → full replacement
+2. YAML `delta:` + literal shifts → merged changes
+3. Literal shifts only → fallback option
+
+### GPT Integration (`gpt_helpers.py`)
+
+**Functions**:
+- `interpret_portfolio_risk()`: GPT-based risk interpretation
+- `generate_subindustry_peers()`: GPT-powered peer generation
+
+**Features**:
+- Professional risk analysis interpretation
+- Automated peer group generation
+- Error handling and validation
+- Configurable model parameters
 
 ## 📚 Additional Resources
 
