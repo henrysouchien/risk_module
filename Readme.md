@@ -535,7 +535,7 @@ For questions or issues:
 - [ ] Streamlit dashboard integration
 - [X] GPT-powered peer suggestion system ✅ **Implemented**
 - [X] Support for cash exposure and short positions ✅ **Implemented**
-- [X] Web dashboard interface (Flask app) ✅ **Implemented**
+- [ ] Web dashboard interface (Flask app) 🔄 **In Development** - Figma UI design in progress
 - [X] Plaid financial data integration ✅ **Implemented**
 - [ ] Real-time risk monitoring
 - [ ] GPT-powered suggestions connected to what-if analysis

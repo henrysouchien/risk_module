@@ -690,7 +690,7 @@ alias_to_currency:        # Broker cash tickers → currency
    - Alternative data sources
 
 3. **User Experience**:
-   - Web-based interface ✅ **Implemented**
+   - Web-based interface 🔄 **In Development** - Figma UI design in progress
    - Mobile app support
    - API endpoints for integration ✅ **Implemented**
 
@@ -715,7 +715,7 @@ alias_to_currency:        # Broker cash tickers → currency
 | Portfolio Optimization | `portfolio_optimizer.py` | ✅ Working | Min variance and max return |
 | GPT Integration | `gpt_helpers.py` | ✅ Working | Peer generation and interpretation |
 | Proxy Builder | `proxy_builder.py` | ✅ Working | Factor proxy generation |
-| Web Application | `app.py` | ✅ Working | Flask web interface |
+| Web Application | `app.py` | 🔄 In Development | Flask web interface - Figma UI design in progress |
 | Plaid Integration | `plaid_loader.py` | ✅ Working | Financial data import |
 | Risk Helpers | `risk_helpers.py` | ✅ Working | Risk calculation utilities |
 
