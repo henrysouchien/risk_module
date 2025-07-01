@@ -10,6 +10,7 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 - **Data Caching**: Intelligent caching system for efficient data retrieval from Financial Modeling Prep (FMP)
 - **YAML Configuration**: Flexible portfolio and risk limit configuration
 - **Risk Limit Monitoring**: Automated risk limit checking and alerts
+- **Centralized Settings**: Default configuration management
 
 ## 📊 What It Does
 
@@ -19,6 +20,7 @@ This risk module provides:
 2. **Single-Stock Diagnostics**: Detailed factor regression analysis for individual securities
 3. **Risk Monitoring**: Automated checking against configurable risk limits
 4. **Data Management**: Efficient caching and retrieval of market data from FMP API
+5. **Configuration Management**: Centralized default settings and configuration
 
 ## 🏗️ Architecture
 
@@ -32,6 +34,7 @@ risk_module/
 ├── risk_summary.py         # Single-stock risk profiling
 ├── run_portfolio_risk.py   # Main portfolio analysis execution
 ├── run_risk.py            # Risk analysis runner
+├── settings.py            # Default configuration settings
 ├── portfolio.yaml         # Portfolio configuration
 ├── risk_limits.yaml       # Risk limit definitions
 └── helpers_*.py           # Utility modules
@@ -43,6 +46,7 @@ risk_module/
 - **Factor Utils** (`factor_utils.py`): Multi-factor regression and volatility calculations
 - **Portfolio Engine** (`portfolio_risk.py`): Portfolio risk decomposition and analysis
 - **Stock Profiler** (`risk_summary.py`): Individual stock factor exposure analysis
+- **Settings Manager** (`settings.py`): Centralized default configuration
 
 ## 🛠️ Installation
 
@@ -96,6 +100,19 @@ python run_single_stock_profile.py
 ```
 
 ### Configuration
+
+#### Default Settings (`settings.py`)
+
+Centralized default configuration for the risk module:
+
+```python
+PORTFOLIO_DEFAULTS = {
+    "start_date": "2019-01-31",
+    "end_date": "2025-06-27"
+}
+```
+
+These defaults are used when specific dates aren't provided in portfolio configurations.
 
 #### Portfolio Configuration (`portfolio.yaml`)
 
@@ -206,6 +223,7 @@ Each provides detailed diagnostics and risk metrics.
 risk_module/
 ├── README.md                 # This file
 ├── architecture.md          # Detailed architecture documentation
+├── settings.py              # Default configuration settings
 ├── portfolio.yaml           # Portfolio configuration
 ├── risk_limits.yaml         # Risk limit definitions
 ├── data_loader.py           # Data fetching and caching

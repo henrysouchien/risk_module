@@ -69,6 +69,7 @@ The system follows a layered architecture pattern with clear separation of conce
 risk_module/
 ├── 📄 README.md                    # Project documentation
 ├── 📄 architecture.md              # This file
+├── ⚙️ settings.py                  # Default configuration settings
 ├── ⚙️ portfolio.yaml              # Portfolio configuration
 ├── ⚙️ risk_limits.yaml            # Risk limit definitions
 ├── 🔌 data_loader.py              # Data fetching and caching
@@ -217,6 +218,33 @@ RAM Cache (LRU) → Disk Cache (Parquet) → Network (FMP API)
 - Batch processing capabilities
 
 ## ⚙️ Configuration Management
+
+### Default Settings (`settings.py`)
+
+**Purpose**: Centralized default configuration management
+
+**Structure**:
+```python
+PORTFOLIO_DEFAULTS = {
+    "start_date": "2019-01-31",
+    "end_date": "2025-06-27"
+}
+```
+
+**Usage**:
+- Provides sensible defaults for portfolio analysis
+- Used when specific dates aren't provided in YAML configurations
+- Centralizes configuration to avoid hardcoded values throughout the codebase
+- Easy to modify for different analysis periods
+
+**Integration**:
+```python
+from settings import PORTFOLIO_DEFAULTS
+
+# Use defaults when not specified
+start_date = config.get('start_date', PORTFOLIO_DEFAULTS['start_date'])
+end_date = config.get('end_date', PORTFOLIO_DEFAULTS['end_date'])
+```
 
 ### Portfolio Configuration (`portfolio.yaml`)
 
