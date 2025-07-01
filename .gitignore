@@ -1,6 +1,7 @@
 .env
 cache_prices/
 __pycache__/
+Archive/
 *.parquet
 .DS_Store 
 .ipynb_checkpoints/
@@ -21,3 +22,4 @@ plaid_loader.py
 risk_module_secrets/
 # Ignore secrets update script
 update_secrets.sh
+Archive/
