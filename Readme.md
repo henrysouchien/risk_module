@@ -774,7 +774,7 @@ For questions or issues:
 - [X] Support for cash exposure and short positions ✅ **Implemented**
 - [ ] Web dashboard interface (Flask app) 🔄 **In Development** - Figma UI design in progress
 - [X] Plaid financial data integration ✅ **Implemented**
-- [ ] Real-time risk monitoring and alerts
+- [ ] Real-time risk monitoring and alerts based on volatility
 - [ ] AI-powered portfolio recommendations and what-if analysis
 - [ ] Additional factor models (quality, size, etc.) for more comprehensive analysis
 - [ ] Backtesting capabilities to validate investment decisions
