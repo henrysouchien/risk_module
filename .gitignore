@@ -2,6 +2,7 @@
 cache_prices/
 __pycache__/
 Archive/
+Docs/
 *.parquet
 .DS_Store 
 .ipynb_checkpoints/
