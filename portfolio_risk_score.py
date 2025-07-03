@@ -232,12 +232,53 @@ def calculate_portfolio_risk_score(
     else:
         category = "Very Poor"
     
+    # ─── 6. Generate Score Interpretation ──────────────────────────────────────
+    if overall_score >= 90:
+        interpretation_summary = "Portfolio has very low risk profile"
+        interpretation_details = [
+            "Well diversified across multiple factors",
+            "Conservative volatility and concentration levels", 
+            "Suitable for risk-averse investors"
+        ]
+    elif overall_score >= 80:
+        interpretation_summary = "Portfolio has acceptable risk profile"
+        interpretation_details = [
+            "Generally well-managed risk exposures",
+            "Minor areas for improvement identified",
+            "Suitable for most investors"
+        ]
+    elif overall_score >= 70:
+        interpretation_summary = "Portfolio has moderate risk concerns"
+        interpretation_details = [
+            "Some risk factors need attention",
+            "Consider implementing recommendations",
+            "Monitor closely for changes"
+        ]
+    elif overall_score >= 60:
+        interpretation_summary = "Portfolio has significant risk issues"
+        interpretation_details = [
+            "Multiple risk factors identified",
+            "Immediate action recommended",
+            "Consider reducing positions or rebalancing"
+        ]
+    else:
+        interpretation_summary = "Portfolio has severe risk issues"
+        interpretation_details = [
+            "Critical risk factors present",
+            "Immediate portfolio restructuring needed",
+            "Consider professional risk management"
+        ]
+
     return {
         "score": round(overall_score, 1),
         "category": category,
         "component_scores": {k: round(v, 1) for k, v in component_scores.items()},
         "risk_factors": risk_factors,
         "recommendations": recommendations,
+        "interpretation": {
+            "summary": interpretation_summary,
+            "details": interpretation_details
+        },
         "details": {
             "volatility": {
                 "actual": actual_vol,
@@ -410,7 +451,11 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
         # Display results
         display_portfolio_risk_score(risk_score)
         
-        return risk_score
+        # Return both risk score and raw portfolio analysis data
+        return {
+            "risk_score": risk_score,
+            "portfolio_analysis": summary
+        }
         
     except Exception as e:
         print(f"Error running risk score analysis: {e}")
@@ -425,7 +470,7 @@ if __name__ == "__main__":
     
     if risk_score:
         print(f"\n✅ Risk score analysis completed successfully!")
-        print(f"   Score: {risk_score['score']}/100")
-        print(f"   Category: {risk_score['category']}")
+        print(f"   Score: {risk_score['risk_score']['score']}/100")
+        print(f"   Category: {risk_score['risk_score']['category']}")
     else:
         print("\n❌ Risk score analysis failed. Check your configuration files.") 

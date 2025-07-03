@@ -23,3 +23,4 @@ risk_module_secrets/
 # Ignore secrets update script
 update_secrets.sh
 frontend/
+cookies.txt
