@@ -410,6 +410,19 @@ def print_what_if_report(
 
     All output is printed to stdout using fixed-width formatting.
     """
+    print("\n📊  NEW Portfolio Weights\n")
+    new_weights = summary_new["allocations"]["Portfolio Weight"]  
+    
+    # Only show weights >= 0.1% to avoid clutter
+    significant_weights = new_weights[new_weights >= 0.001]
+    
+    # Sort by weight (largest first)
+    significant_weights = significant_weights.sort_values(ascending=False)
+    
+    # Format as percentages
+    for ticker, weight in significant_weights.items():
+        print(f"{ticker:<8} {weight:.1%}")
+
     print("\n📐  NEW Portfolio – Risk Checks\n")
     print(risk_new.to_string(index=False, formatters={
         "Actual": lambda x: f"{x:.1%}",
