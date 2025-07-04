@@ -368,7 +368,11 @@ def build_portfolio_view(
     idio_var_dict  = {}
 
     if stock_factor_proxies:
-        for ticker, proxies in stock_factor_proxies.items():
+        for ticker in weights.keys():
+            if ticker not in stock_factor_proxies:
+                continue
+            proxies = stock_factor_proxies[ticker]
+            
             # Fetch stock returns
             prices    = fetch_monthly_close(ticker, start_date=start_date, end_date=end_date)
             stock_ret = calc_monthly_returns(prices)
@@ -434,10 +438,13 @@ def build_portfolio_view(
     weighted_factor_var = pd.DataFrame(index=df_stock_betas.index,
                                        columns=df_stock_betas.columns) # w_i² β² σ²
     
-    if stock_factor_proxies:                                           # ← guard
+    if stock_factor_proxies:                                           # ← guard 
         w2 = pd.Series(weights).pow(2)                                 # w_i²
     
-        for tkr, proxies in stock_factor_proxies.items():
+        for tkr in weights.keys():
+            if tkr not in stock_factor_proxies:
+                continue
+            proxies = stock_factor_proxies[tkr]
     
             # ----- rebuild this stock’s factor-return dict (same logic as above) --
             idx_stock = calc_monthly_returns(
@@ -479,20 +486,10 @@ def build_portfolio_view(
         # ---------- after loop: clean tables & build w²·β²·σ² -------------
         
         # df_factor_vols  : σ-table (annual factor vols by stock)
-        df_factor_vols = (
-            df_factor_vols
-                .apply(pd.to_numeric, errors="coerce")  # force numeric, NaNs where bad
-                .astype("float64", copy=False)          # ensure float dtype, no copy if already
-                .fillna(0.0)                           # now safe – no warning
-        )
-        
+        df_factor_vols = df_factor_vols.infer_objects(copy=False).fillna(0.0)
+
         # betas_filled β-table with NaNs → 0.0
-        betas_filled = (
-            df_stock_betas
-                .apply(pd.to_numeric, errors="coerce")
-                .astype("float64", copy=False)
-                .fillna(0.0)
-        )
+        betas_filled = df_stock_betas.infer_objects(copy=False).fillna(0.0)
 
         # ----- weighted factor variance  w_i² β_i,f² σ_i,f² -----------------------
         weighted_factor_var = betas_filled.pow(2) * df_factor_vols.pow(2)
@@ -510,7 +507,10 @@ def build_portfolio_view(
     industry_var_dict = {}
     
     # Step: reverse-map which stock maps to which industry ETF
-    for tkr, proxies in stock_factor_proxies.items():
+    for tkr in weights.keys():
+        if tkr not in stock_factor_proxies:
+            continue
+        proxies = stock_factor_proxies[tkr]
         ind = proxies.get("industry")
         if ind:
             v = weighted_factor_var.loc[tkr, "industry"] if "industry" in weighted_factor_var.columns else 0.0
@@ -527,6 +527,19 @@ def build_portfolio_view(
             industry_groups[proxy] = industry_groups.get(proxy, 0.0) + (weight * beta)
     
     # ─── 4. Final Portfolio Stats (Volatility, Idio, Betas) ─────────────────────
+
+    # --- make df_stock_betas NaNs → 0.0 -------------
+    df_stock_betas = (
+        df_stock_betas
+            .infer_objects(copy=False).fillna(0.0)
+    )
+    
+    w_series = (
+        pd.Series(weights, dtype=float)
+          .reindex(df_stock_betas.index)
+          .fillna(0.0)
+    )
+
     portfolio_factor_betas  = df_stock_betas.mul(w_series, axis=0).sum(skipna=True)
 
     # 4a) per-asset annualised stats ----------------------------------------
