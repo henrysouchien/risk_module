@@ -609,5 +609,206 @@ def build_portfolio_view(
 # In[ ]:
 
 
+# ── run_portfolio_risk.py ────────────────────────────────────────────
 
+def calculate_portfolio_performance_metrics(
+    weights: Dict[str, float],
+    start_date: str,
+    end_date: str,
+    benchmark_ticker: str = "SPY",
+    risk_free_rate: float = None
+) -> Dict[str, Any]:
+    """
+    Calculate comprehensive portfolio performance metrics including risk-adjusted returns.
+    
+    Args:
+        weights (Dict[str, float]): Portfolio weights by ticker
+        start_date (str): Analysis start date (YYYY-MM-DD)
+        end_date (str): Analysis end date (YYYY-MM-DD) 
+        benchmark_ticker (str): Benchmark ticker for comparison (default: SPY)
+        risk_free_rate (float): Risk-free rate (annual). If None, uses 3-month Treasury yield from FMP
+        
+    Returns:
+        Dict[str, Any]: Performance metrics including:
+            - total_return: Cumulative portfolio return
+            - annualized_return: CAGR of the portfolio
+            - volatility: Annual volatility
+            - sharpe_ratio: Risk-adjusted return vs risk-free rate
+            - sortino_ratio: Downside risk-adjusted return
+            - information_ratio: Tracking error-adjusted excess return vs benchmark
+            - alpha: Excess return vs benchmark (CAPM alpha)
+            - beta: Portfolio beta vs benchmark
+            - maximum_drawdown: Worst peak-to-trough loss
+            - calmar_ratio: Return / max drawdown
+            - benchmark_comparison: Side-by-side metrics vs benchmark
+            - monthly_performance: Month-by-month returns for analysis
+    """
+    
+    # Get portfolio returns using existing infrastructure
+    df_ret = get_returns_dataframe(weights, start_date, end_date)
+    portfolio_returns = compute_portfolio_returns(df_ret, weights)
+    
+    if portfolio_returns.empty or len(portfolio_returns) < 12:
+        return {
+            "error": "Insufficient data for performance calculation",
+            "months_available": len(portfolio_returns)
+        }
+    
+    # Get benchmark returns
+    try:
+        benchmark_prices = fetch_monthly_close(benchmark_ticker, start_date, end_date)
+        benchmark_returns = calc_monthly_returns(benchmark_prices)
+        
+        # Align portfolio and benchmark returns
+        aligned_data = pd.DataFrame({
+            'portfolio': portfolio_returns,
+            'benchmark': benchmark_returns
+        }).dropna()
+        
+        if aligned_data.empty:
+            return {"error": f"No overlapping data between portfolio and {benchmark_ticker}"}
+            
+        port_ret = aligned_data['portfolio']
+        bench_ret = aligned_data['benchmark']
+        
+    except Exception as e:
+        return {"error": f"Could not fetch benchmark data for {benchmark_ticker}: {str(e)}"}
+    
+    # Calculate risk-free rate if not provided
+    if risk_free_rate is None:
+        try:
+            # Use 3-month Treasury rates from FMP (actual yields, not ETF returns)
+            from data_loader import fetch_monthly_treasury_rates
+            treasury_rates = fetch_monthly_treasury_rates("month3", start_date, end_date)
+            risk_free_rate = treasury_rates.mean() / 100  # Convert percentage to decimal
+        except:
+            risk_free_rate = 0.04  # 4% default if can't fetch
+    
+    risk_free_monthly = risk_free_rate / 12
+    
+    # Basic performance metrics
+    total_months = len(port_ret)
+    years = total_months / 12
+    
+    # Total returns
+    total_portfolio_return = (1 + port_ret).prod() - 1
+    total_benchmark_return = (1 + bench_ret).prod() - 1
+    
+    # Annualized returns (CAGR)
+    annualized_portfolio_return = (1 + total_portfolio_return) ** (1/years) - 1
+    annualized_benchmark_return = (1 + total_benchmark_return) ** (1/years) - 1
+    
+    # Volatility (annualized)
+    portfolio_volatility = port_ret.std() * np.sqrt(12)
+    benchmark_volatility = bench_ret.std() * np.sqrt(12)
+    
+    # Excess returns
+    portfolio_excess = port_ret - risk_free_monthly
+    benchmark_excess = bench_ret - risk_free_monthly
+    tracking_error = (port_ret - bench_ret).std() * np.sqrt(12)
+    
+    # Risk-adjusted metrics
+    sharpe_ratio = (annualized_portfolio_return - risk_free_rate) / portfolio_volatility if portfolio_volatility > 0 else 0
+    benchmark_sharpe = (annualized_benchmark_return - risk_free_rate) / benchmark_volatility if benchmark_volatility > 0 else 0
+    
+    # Sortino ratio (downside deviation)
+    downside_returns = port_ret[port_ret < risk_free_monthly] - risk_free_monthly
+    downside_deviation = np.sqrt((downside_returns ** 2).mean()) * np.sqrt(12) if len(downside_returns) > 0 else 0
+    sortino_ratio = (annualized_portfolio_return - risk_free_rate) / downside_deviation if downside_deviation > 0 else 0
+    
+    # Information ratio
+    excess_return_vs_benchmark = annualized_portfolio_return - annualized_benchmark_return
+    information_ratio = excess_return_vs_benchmark / tracking_error if tracking_error > 0 else 0
+    
+    # Alpha and Beta (CAPM)
+    if len(aligned_data) >= 24:  # Need sufficient data for regression
+        try:
+            # Simple linear regression: portfolio_excess = alpha + beta * benchmark_excess
+            X = sm.add_constant(benchmark_excess)
+            model = sm.OLS(portfolio_excess, X).fit()
+            alpha_monthly = model.params.iloc[0]  # Use .iloc for position-based access
+            beta = model.params.iloc[1]           # Use .iloc for position-based access
+            alpha_annual = alpha_monthly * 12
+            r_squared = model.rsquared
+        except:
+            alpha_annual = 0
+            beta = 1
+            r_squared = 0
+    else:
+        alpha_annual = 0
+        beta = 1
+        r_squared = 0
+    
+    # Maximum Drawdown
+    cumulative_returns = (1 + port_ret).cumprod()
+    running_max = cumulative_returns.expanding().max()
+    drawdown = (cumulative_returns - running_max) / running_max
+    maximum_drawdown = drawdown.min()
+    
+    # Calmar Ratio (return / max drawdown)
+    calmar_ratio = abs(annualized_portfolio_return / maximum_drawdown) if maximum_drawdown < -0.001 else 0
+    
+    # Win rate and average win/loss
+    positive_months = port_ret[port_ret > 0]
+    negative_months = port_ret[port_ret < 0]
+    win_rate = len(positive_months) / len(port_ret) if len(port_ret) > 0 else 0
+    avg_win = positive_months.mean() if len(positive_months) > 0 else 0
+    avg_loss = negative_months.mean() if len(negative_months) > 0 else 0
+    win_loss_ratio = abs(avg_win / avg_loss) if avg_loss != 0 else 0
+    
+    # Performance summary
+    performance_metrics = {
+        "analysis_period": {
+            "start_date": start_date,
+            "end_date": end_date,
+            "total_months": total_months,
+            "years": round(years, 2)
+        },
+        "returns": {
+            "total_return": round(total_portfolio_return * 100, 2),
+            "annualized_return": round(annualized_portfolio_return * 100, 2),
+            "best_month": round(port_ret.max() * 100, 2),
+            "worst_month": round(port_ret.min() * 100, 2),
+            "positive_months": len(positive_months),
+            "negative_months": len(negative_months),
+            "win_rate": round(win_rate * 100, 1)
+        },
+        "risk_metrics": {
+            "volatility": round(portfolio_volatility * 100, 2),
+            "maximum_drawdown": round(maximum_drawdown * 100, 2),
+            "downside_deviation": round(downside_deviation * 100, 2),
+            "tracking_error": round(tracking_error * 100, 2)
+        },
+        "risk_adjusted_returns": {
+            "sharpe_ratio": round(sharpe_ratio, 3),
+            "sortino_ratio": round(sortino_ratio, 3),
+            "information_ratio": round(information_ratio, 3),
+            "calmar_ratio": round(calmar_ratio, 3)
+        },
+        "benchmark_analysis": {
+            "benchmark_ticker": benchmark_ticker,
+            "alpha_annual": round(alpha_annual * 100, 2),
+            "beta": round(beta, 3),
+            "r_squared": round(r_squared, 3),
+            "excess_return": round(excess_return_vs_benchmark * 100, 2)
+        },
+        "benchmark_comparison": {
+            "portfolio_return": round(annualized_portfolio_return * 100, 2),
+            "benchmark_return": round(annualized_benchmark_return * 100, 2),
+            "portfolio_volatility": round(portfolio_volatility * 100, 2),
+            "benchmark_volatility": round(benchmark_volatility * 100, 2),
+            "portfolio_sharpe": round(sharpe_ratio, 3),
+            "benchmark_sharpe": round(benchmark_sharpe, 3)
+        },
+        "monthly_stats": {
+            "average_monthly_return": round(port_ret.mean() * 100, 2),
+            "average_win": round(avg_win * 100, 2),
+            "average_loss": round(avg_loss * 100, 2),
+            "win_loss_ratio": round(win_loss_ratio, 2)
+        },
+        "risk_free_rate": round(risk_free_rate * 100, 2),
+        "monthly_returns": port_ret.round(4).to_dict()
+    }
+    
+    return performance_metrics
 

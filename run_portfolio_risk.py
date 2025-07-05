@@ -525,3 +525,162 @@ def evaluate_portfolio_risk_limits(
 
     return pd.DataFrame(results)
 
+
+# In[ ]:
+
+
+# File: run_portfolio_risk.py
+
+def display_portfolio_performance_metrics(performance_metrics: Dict[str, Any]) -> None:
+    """
+    Display portfolio performance metrics in a formatted, professional layout.
+    
+    Parameters
+    ----------
+    performance_metrics : Dict[str, Any]
+        Output from calculate_portfolio_performance_metrics()
+    """
+    
+    # Check for errors
+    if "error" in performance_metrics:
+        print(f"❌ Error: {performance_metrics['error']}")
+        return
+    
+    # Extract data
+    period = performance_metrics["analysis_period"]
+    returns = performance_metrics["returns"]
+    risk = performance_metrics["risk_metrics"]
+    ratios = performance_metrics["risk_adjusted_returns"]
+    benchmark = performance_metrics["benchmark_analysis"]
+    comparison = performance_metrics["benchmark_comparison"]
+    monthly = performance_metrics["monthly_stats"]
+    
+    # Header
+    print("\n" + "="*60)
+    print("📊 PORTFOLIO PERFORMANCE ANALYSIS")
+    print("="*60)
+    
+    # Analysis period
+    print(f"📅 Analysis Period: {period['start_date']} to {period['end_date']}")
+    print(f"📊 Total Months: {period['total_months']} ({period['years']} years)")
+    
+    # Core performance metrics
+    print(f"\n📈 RETURN METRICS")
+    print("─" * 40)
+    print(f"📊 Total Return:        {returns['total_return']:>8.2f}%")
+    print(f"📈 Annualized Return:   {returns['annualized_return']:>8.2f}%")
+    print(f"🟢 Best Month:          {returns['best_month']:>8.2f}%")
+    print(f"🔴 Worst Month:         {returns['worst_month']:>8.2f}%")
+    print(f"🎯 Win Rate:            {returns['win_rate']:>8.1f}%")
+    
+    # Risk metrics
+    print(f"\n⚡ RISK METRICS")
+    print("─" * 40)
+    print(f"📉 Volatility:          {risk['volatility']:>8.2f}%")
+    print(f"📉 Max Drawdown:        {risk['maximum_drawdown']:>8.2f}%")
+    print(f"📊 Downside Deviation:  {risk['downside_deviation']:>8.2f}%")
+    print(f"📈 Tracking Error:      {risk['tracking_error']:>8.2f}%")
+    
+    # Risk-adjusted returns
+    print(f"\n🎯 RISK-ADJUSTED RETURNS")
+    print("─" * 40)
+    print(f"⚡ Sharpe Ratio:        {ratios['sharpe_ratio']:>8.3f}")
+    print(f"📊 Sortino Ratio:       {ratios['sortino_ratio']:>8.3f}")
+    print(f"📈 Information Ratio:   {ratios['information_ratio']:>8.3f}")
+    print(f"📉 Calmar Ratio:        {ratios['calmar_ratio']:>8.3f}")
+    
+    # Benchmark analysis
+    print(f"\n🔍 BENCHMARK ANALYSIS ({benchmark['benchmark_ticker']})")
+    print("─" * 40)
+    print(f"🎯 Alpha (Annual):      {benchmark['alpha_annual']:>8.2f}%")
+    print(f"📊 Beta:                {benchmark['beta']:>8.3f}")
+    print(f"📈 R-Squared:           {benchmark['r_squared']:>8.3f}")
+    print(f"📊 Excess Return:       {benchmark['excess_return']:>8.2f}%")
+    
+    # Portfolio vs Benchmark comparison
+    print(f"\n📊 PORTFOLIO vs {benchmark['benchmark_ticker']} COMPARISON")
+    print("─" * 40)
+    print(f"{'Metric':<20} {'Portfolio':<12} {'Benchmark':<12}")
+    print("─" * 40)
+    print(f"{'Return':<20} {comparison['portfolio_return']:>8.2f}%    {comparison['benchmark_return']:>8.2f}%")
+    print(f"{'Volatility':<20} {comparison['portfolio_volatility']:>8.2f}%    {comparison['benchmark_volatility']:>8.2f}%")
+    print(f"{'Sharpe Ratio':<20} {comparison['portfolio_sharpe']:>8.3f}     {comparison['benchmark_sharpe']:>8.3f}")
+    
+    # Monthly statistics
+    print(f"\n📅 MONTHLY STATISTICS")
+    print("─" * 40)
+    print(f"📊 Avg Monthly Return:  {monthly['average_monthly_return']:>8.2f}%")
+    print(f"🟢 Average Win:         {monthly['average_win']:>8.2f}%")
+    print(f"🔴 Average Loss:        {monthly['average_loss']:>8.2f}%")
+    print(f"⚖️  Win/Loss Ratio:     {monthly['win_loss_ratio']:>8.2f}")
+    print(f"📊 Positive Months:     {returns['positive_months']:>8.0f}")
+    print(f"📉 Negative Months:     {returns['negative_months']:>8.0f}")
+    
+    # Risk-free rate
+    print(f"\n🏦 RISK-FREE RATE")
+    print("─" * 40)
+    print(f"📊 3-Month Treasury:    {performance_metrics['risk_free_rate']:>8.2f}%")
+    
+    # Performance summary
+    print(f"\n✅ PERFORMANCE SUMMARY")
+    print("─" * 40)
+    
+    # Determine performance quality
+    annual_return = returns['annualized_return']
+    sharpe = ratios['sharpe_ratio']
+    max_dd = abs(risk['maximum_drawdown'])
+    
+    if annual_return > 15 and sharpe > 1.0 and max_dd < 20:
+        quality = "🟢 EXCELLENT"
+        summary = "Strong returns with good risk management"
+    elif annual_return > 10 and sharpe > 0.8 and max_dd < 30:
+        quality = "🟡 GOOD"
+        summary = "Solid performance with acceptable risk"
+    elif annual_return > 5 and sharpe > 0.5 and max_dd < 40:
+        quality = "🟠 FAIR"
+        summary = "Moderate performance with some risk concerns"
+    else:
+        quality = "🔴 POOR"
+        summary = "Underperforming with significant risk issues"
+    
+    print(f"{quality}: {summary}")
+    
+    # Key insights
+    print(f"\n💡 KEY INSIGHTS")
+    print("─" * 40)
+    
+    # Alpha analysis
+    if benchmark['alpha_annual'] > 3:
+        print(f"   • Strong alpha generation (+{benchmark['alpha_annual']:.1f}% vs {benchmark['benchmark_ticker']})")
+    elif benchmark['alpha_annual'] > 0:
+        print(f"   • Modest alpha generation (+{benchmark['alpha_annual']:.1f}% vs {benchmark['benchmark_ticker']})")
+    else:
+        print(f"   • Underperforming benchmark ({benchmark['alpha_annual']:+.1f}% vs {benchmark['benchmark_ticker']})")
+    
+    # Beta analysis
+    if benchmark['beta'] > 1.2:
+        print(f"   • High market sensitivity (β = {benchmark['beta']:.2f})")
+    elif benchmark['beta'] > 0.8:
+        print(f"   • Moderate market sensitivity (β = {benchmark['beta']:.2f})")
+    else:
+        print(f"   • Low market sensitivity (β = {benchmark['beta']:.2f})")
+    
+    # Sharpe analysis
+    if ratios['sharpe_ratio'] > 1.0:
+        print(f"   • Good risk-adjusted returns (Sharpe = {ratios['sharpe_ratio']:.2f})")
+    elif ratios['sharpe_ratio'] > 0.5:
+        print(f"   • Acceptable risk-adjusted returns (Sharpe = {ratios['sharpe_ratio']:.2f})")
+    else:
+        print(f"   • Poor risk-adjusted returns (Sharpe = {ratios['sharpe_ratio']:.2f})")
+    
+    # Win rate analysis
+    if returns['win_rate'] > 60:
+        print(f"   • High consistency ({returns['win_rate']:.0f}% win rate)")
+    elif returns['win_rate'] > 50:
+        print(f"   • Moderate consistency ({returns['win_rate']:.0f}% win rate)")
+    else:
+        print(f"   • Low consistency ({returns['win_rate']:.0f}% win rate)")
+    
+    print("="*60)
+
+

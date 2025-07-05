@@ -151,6 +151,64 @@ def fetch_monthly_close(
         prefix=ticker,
     )
 
+
+def fetch_monthly_treasury_rates(
+    maturity: str = "month3",
+    start_date: Optional[Union[str, datetime]] = None,
+    end_date:   Optional[Union[str, datetime]] = None
+) -> pd.Series:
+    """
+    Fetch month-end Treasury rates for a given maturity from FMP.
+
+    Uses the `/stable/treasury-rates` endpoint to get Treasury rates,
+    then resamples to month-end to align with stock price data.
+
+    Args:
+        maturity (str): Treasury maturity ("month3", "month6", "year1", etc.)
+        start_date (str|datetime, optional): Earliest date (inclusive).
+        end_date   (str|datetime, optional): Latest date (inclusive).
+
+    Returns:
+        pd.Series: Month-end Treasury rates (as percentages) indexed by date.
+    """
+    # ----- loader (runs only on cache miss) ------------------------------
+    def _api_pull() -> pd.Series:
+        params = {"apikey": API_KEY}
+        if start_date:
+            params["from"] = pd.to_datetime(start_date).date().isoformat()
+        if end_date:
+            params["to"] = pd.to_datetime(end_date).date().isoformat()
+        
+        resp = requests.get(f"{BASE_URL}/treasury-rates", params=params, timeout=30)
+        resp.raise_for_status()
+        raw = resp.json()
+        
+        # Create DataFrame from API response
+        df = pd.DataFrame(raw)
+        df["date"] = pd.to_datetime(df["date"])
+        df.set_index("date", inplace=True)
+        
+        # Extract the specified maturity column
+        if maturity not in df.columns:
+            available = list(df.columns)
+            raise ValueError(f"Maturity '{maturity}' not available. Available: {available}")
+        
+        # Sort by date (API already filtered by date range)
+        df_sorted = df.sort_index()
+        
+        # Resample to month-end (align with stock prices)
+        monthly = df_sorted.resample("ME")[maturity].last()
+        monthly.name = f"treasury_{maturity}"
+        return monthly
+
+    # ----- call cache layer ---------------------------------------------
+    return cache_read(
+        key=["treasury", maturity, start_date or "none", end_date or "none"],
+        loader=_api_pull,
+        cache_dir="cache_prices",
+        prefix=f"treasury_{maturity}",
+    )
+
 # ----------------------------------------------------------------------
 #  RAM-cache wrapper  (add this at the very bottom of data_loader.py)
 # ----------------------------------------------------------------------
@@ -159,6 +217,7 @@ import pandas as pd                                 # already imported above
 
 # 1) private handle to the disk-cached version
 _fetch_monthly_close_disk = fetch_monthly_close     
+_fetch_monthly_treasury_rates_disk = fetch_monthly_treasury_rates
 
 # 2) re-export the public name with an LRU layer
 @lru_cache(maxsize=256)          # tune size to taste
@@ -172,6 +231,20 @@ def fetch_monthly_close(         # ← same name seen by callers
     Same signature and behaviour as the original function.
     """
     return _fetch_monthly_close_disk(ticker, start_date, end_date)
+
+
+@lru_cache(maxsize=64)          # smaller cache for Treasury rates
+def fetch_monthly_treasury_rates(
+    maturity: str = "month3",
+    start_date: str | None = None,
+    end_date:   str | None = None,
+) -> pd.Series:
+    """
+    RAM-cached → disk-cached → network Treasury rate fetch.
+    Same signature and behaviour as the original function.
+    """
+    return _fetch_monthly_treasury_rates_disk(maturity, start_date, end_date)
+
 
 
 # In[ ]:
