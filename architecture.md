@@ -43,7 +43,9 @@ The system follows a layered architecture pattern with clear separation of conce
 │                    Presentation Layer                        │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
 │  │ run_portfolio_  │  │ run_single_     │  │ run_risk.py  │ │
-│  │ risk.py         │  │ stock_profile.py│  │              │ │
+│  │ risk.py         │  │ stock_profile.py│  │ + performance│ │
+│  │ + performance   │  │                 │  │ runner       │ │
+│  │ display         │  │                 │  │              │ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
@@ -82,8 +84,8 @@ risk_module/
 ├── 📊 factor_utils.py             # Factor analysis utilities
 ├── 💼 portfolio_risk.py           # Portfolio risk calculations
 ├── 📈 risk_summary.py             # Single-stock risk profiling
-├── 🚀 run_portfolio_risk.py       # Portfolio analysis runner
-├── 🎯 run_risk.py                 # Risk analysis runner
+├── 🚀 run_portfolio_risk.py       # Portfolio analysis runner + performance display
+├── 🎯 run_risk.py                 # Risk analysis runner + performance runner
 ├── 🛠️ helpers_display.py          # Display utilities
 ├── 🛠️ helpers_input.py            # Input processing utilities
 ├── 🛠️ risk_helpers.py             # Risk calculation helpers
@@ -148,6 +150,31 @@ risk_module/
    regression results → risk_summary.py → risk profile
 ```
 
+### Portfolio Performance Analysis Flow
+
+```
+1. Configuration Loading
+   portfolio.yaml → run_portfolio_performance() → portfolio weights + dates
+
+2. Data Collection
+   portfolio tickers + benchmark → data_loader.py → historical price data
+   Treasury rates → fetch_monthly_treasury_rates() → risk-free rate data
+
+3. Return Calculation
+   price data → calculate_portfolio_performance_metrics() → portfolio returns
+   benchmark data → calculate_portfolio_performance_metrics() → benchmark returns
+
+4. Performance Metrics
+   returns + risk-free rates → performance calculations → comprehensive metrics
+   - Annualized returns and volatility
+   - Risk-adjusted metrics (Sharpe, Sortino, Information ratios)
+   - Benchmark analysis (alpha, beta, tracking error)
+   - Drawdown analysis and recovery periods
+
+5. Display & Reporting
+   performance metrics → display_portfolio_performance_metrics() → formatted output
+```
+
 ## 🔧 Component Details
 
 ### 1. Data Layer (`data_loader.py`)
@@ -164,11 +191,19 @@ risk_module/
 - Compressed parquet storage
 - MD5-based cache keys
 - Error handling and retry logic
+- Treasury rate integration for risk-free rates
 
 **Caching Strategy**:
 ```
 RAM Cache (LRU) → Disk Cache (Parquet) → Network (FMP API)
 ```
+
+**Treasury Rate Integration**:
+The system now uses professional-grade risk-free rates from the FMP Treasury API instead of ETF price movements:
+- `fetch_monthly_treasury_rates()`: Retrieves 3-month Treasury yields
+- Proper date range filtering for historical analysis
+- Cache-enabled for performance with monthly resampling
+- Eliminates contamination from bond price fluctuations in rate calculations
 
 ### 2. Factor Analysis (`factor_utils.py`)
 
@@ -198,6 +233,35 @@ RAM Cache (LRU) → Disk Cache (Parquet) → Network (FMP API)
 - `compute_covariance_matrix()`: Risk matrix construction
 - `compute_portfolio_volatility()`: Portfolio volatility
 - `compute_risk_contributions()`: Risk attribution
+- `calculate_portfolio_performance_metrics()`: Comprehensive performance analysis
+
+### 4. Portfolio Performance Engine (`portfolio_risk.py`)
+
+**Purpose**: Portfolio performance metrics and risk-adjusted return analysis
+
+**Key Functions**:
+- `calculate_portfolio_performance_metrics()`: Calculate returns, Sharpe ratio, alpha, beta, max drawdown
+- `get_treasury_rate_from_fmp()`: Fetch risk-free rates from FMP Treasury API
+- `fetch_monthly_treasury_rates()`: Retrieve historical Treasury rates with caching
+
+**Features**:
+- Historical return analysis with proper compounding
+- Risk-adjusted performance metrics (Sharpe, Sortino, Information ratios)
+- Benchmark comparison (alpha, beta, tracking error)
+- Drawdown analysis and recovery periods
+- Professional risk-free rate integration using Treasury yields
+- Comprehensive display formatting with automated insights
+- Win rate and best/worst month analysis
+
+**Performance Metrics Calculated**:
+- Total and annualized returns
+- Volatility (annual standard deviation)
+- Maximum drawdown and recovery analysis
+- Sharpe ratio (excess return per unit of risk)
+- Sortino ratio (downside risk-adjusted returns)
+- Information ratio (tracking error-adjusted alpha)
+- Alpha and beta vs benchmark (SPY)
+- Tracking error and correlation analysis
 - `compute_herfindahl()`: Concentration analysis
 - `build_portfolio_view()`: Comprehensive risk summary
 

@@ -8,6 +8,7 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 
 - **Multi-Factor Risk Analysis**: Understand how market forces affect your portfolio to make better allocation decisions
 - **Portfolio Risk Decomposition**: See which positions drive your risk to know where to focus your risk management
+- **Portfolio Performance Analysis**: Calculate comprehensive performance metrics including returns, Sharpe ratio, alpha, beta, and maximum drawdown
 - **Single-Stock Risk Profiles**: Analyze individual stocks to make informed buy/sell decisions
 - **Data Caching**: Fast, reliable data access for consistent analysis
 - **YAML Configuration**: Easy portfolio setup and risk limit management
@@ -21,6 +22,7 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 **Key Functions to Know:**
 - `inject_all_proxies()` - Set up factor proxies for new portfolios (required before analysis)
 - `run_portfolio()` - Full portfolio analysis with risk decomposition
+- `run_portfolio_performance()` - Calculate comprehensive performance metrics (returns, Sharpe ratio, alpha, beta, max drawdown)
 - `run_stock()` - Single stock analysis and factor exposure
 - `run_what_if()` - Scenario testing for portfolio changes
 - `run_min_variance()` - Lowest risk portfolio optimization
@@ -30,6 +32,9 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 **Common User Requests:**
 - "Set up a new portfolio" → Use `inject_all_proxies()` first, then `run_portfolio()`
 - "Analyze my portfolio risk" → Use `run_portfolio()` function
+- "Calculate portfolio performance" → Use `run_portfolio_performance()` function
+- "What's my portfolio's historical return?" → Use `run_portfolio_performance()` function
+- "Show me Sharpe ratio and alpha" → Use `run_portfolio_performance()` function
 - "Analyze a single stock" → Use `run_stock()` function
 - "What if I reduce position X?" → Use `run_what_if()` function
 - "Optimize for minimum risk" → Use `run_min_variance()` function
@@ -58,6 +63,7 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 
 **Function Parameters:**
 - `run_portfolio()` - No parameters, reads from portfolio.yaml
+- `run_portfolio_performance(filepath)` - Calculate performance metrics from YAML file
 - `run_stock(ticker, start_date=None, end_date=None)` - Analyze single stock
 - `run_what_if(portfolio_changes)` - Test portfolio modifications
 - `run_min_variance()` - Optimize for minimum risk
@@ -70,10 +76,11 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 This risk module helps you make better investment decisions by:
 
 1. **Portfolio Analysis**: Understanding your overall risk profile to make informed allocation decisions
-2. **Single-Stock Diagnostics**: Evaluating individual stocks to make better buy/sell choices
-3. **Risk Monitoring**: Staying within your risk tolerance to avoid unpleasant surprises
-4. **Data Management**: Ensuring reliable, consistent analysis for confident decision-making
-5. **Configuration Management**: Maintaining consistent risk parameters across your portfolios
+2. **Portfolio Performance Analysis**: Evaluating your historical returns, risk-adjusted performance, and alpha generation
+3. **Single-Stock Diagnostics**: Evaluating individual stocks to make better buy/sell choices
+4. **Risk Monitoring**: Staying within your risk tolerance to avoid unpleasant surprises
+5. **Data Management**: Ensuring reliable, consistent analysis for confident decision-making
+6. **Configuration Management**: Maintaining consistent risk parameters across your portfolios
 
 ## 🏗️ Architecture
 
@@ -156,13 +163,43 @@ risk_module/
    run_portfolio()
    ```
 
-3. **Get risk score**:
+3. **Calculate portfolio performance**:
+   ```python
+   from run_risk import run_portfolio_performance
+   
+   # Calculate comprehensive performance metrics
+   run_portfolio_performance("portfolio.yaml")
+   ```
+
+4. **Get risk score**:
    ```python
    from portfolio_risk_score import portfolio_risk_score
    
    # Get 0-100 risk score with recommendations
    score, breakdown = portfolio_risk_score()
    ```
+
+### Command-Line Interface
+
+The system provides a unified command-line interface for all analysis types:
+
+```bash
+# Portfolio risk analysis
+python run_risk.py --portfolio portfolio.yaml
+
+# Portfolio performance analysis
+python run_risk.py --portfolio portfolio.yaml --performance
+
+# Single stock analysis
+python run_risk.py --stock AAPL
+
+# What-if scenario analysis
+python run_risk.py --portfolio portfolio.yaml --whatif
+
+# Portfolio optimization
+python run_risk.py --portfolio portfolio.yaml --minvar    # Minimum variance
+python run_risk.py --portfolio portfolio.yaml --maxreturn # Maximum return
+```
 
 ### Portfolio Analysis
 
@@ -181,6 +218,24 @@ This will:
 - Perform multi-factor regression analysis
 - Calculate portfolio risk metrics
 - Generate comprehensive risk report
+
+### Portfolio Performance Analysis
+
+Calculate comprehensive performance metrics:
+
+```python
+from run_risk import run_portfolio_performance
+
+# Calculate performance metrics (returns, Sharpe ratio, alpha, beta, max drawdown)
+run_portfolio_performance("portfolio.yaml")
+```
+
+This will:
+- Load portfolio configuration from the YAML file
+- Calculate historical returns and volatility
+- Compute risk-adjusted performance metrics (Sharpe ratio, Sortino ratio)
+- Analyze performance vs benchmark (alpha, beta, tracking error)
+- Display professional performance report with insights
 
 ### Single Stock Analysis
 
@@ -298,6 +353,17 @@ The system generates actionable risk insights including:
 - **Risk Decomposition**: Identify what's driving your risk to focus your management efforts
 - **Concentration Analysis**: Check your diversification to decide if you need more positions
 - **Risk Limit Monitoring**: Stay within your comfort zone to avoid unpleasant surprises
+
+### Portfolio Performance Summary
+
+The system generates comprehensive performance metrics to help you evaluate your investment strategy:
+
+- **Return Analysis**: Total returns, annualized returns, and monthly performance tracking
+- **Risk-Adjusted Metrics**: Sharpe ratio, Sortino ratio, and Information ratio for risk-adjusted performance evaluation
+- **Benchmark Comparison**: Alpha, beta, and tracking error analysis vs SPY benchmark
+- **Drawdown Analysis**: Maximum drawdown, recovery periods, and downside risk assessment
+- **Win Rate Analysis**: Percentage of positive months and best/worst performance periods
+- **Professional Insights**: Automated performance quality assessment and recommendations
 
 ### Single Stock Profile
 
@@ -679,24 +745,27 @@ DEFAULT:
 The system includes several ways to test your portfolio analysis:
 
 ```python
-from run_risk import run_portfolio, run_stock, run_what_if, run_min_variance, run_max_return
+from run_risk import run_portfolio, run_portfolio_performance, run_stock, run_what_if, run_min_variance, run_max_return
 from portfolio_risk_score import portfolio_risk_score
 
 # 1. Full portfolio analysis
 run_portfolio()
 
-# 2. Single stock analysis
+# 2. Portfolio performance analysis
+run_portfolio_performance("portfolio.yaml")
+
+# 3. Single stock analysis
 run_stock("AAPL")
 
-# 3. What-if scenario testing
+# 4. What-if scenario testing
 changes = {"AAPL": 0.05, "SGOV": 0.10}  # Reduce AAPL, add SGOV
 run_what_if(changes)
 
-# 4. Portfolio optimization
+# 5. Portfolio optimization
 run_min_variance()  # Minimum risk portfolio
 run_max_return()    # Maximum return portfolio
 
-# 5. Risk scoring
+# 6. Risk scoring
 score, breakdown, recommendations = portfolio_risk_score()
 ```
 
