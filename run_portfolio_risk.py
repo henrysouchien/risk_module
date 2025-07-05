@@ -183,26 +183,64 @@ def display_portfolio_config(cfg: Dict[str, Any]) -> None:
     """
     Nicely print the fields produced by load_portfolio_config().
     """
-    print("=== Normalized Weights ===")
-    print(cfg["weights"])
+    print("=== PORTFOLIO ALLOCATIONS BEING ANALYZED ===")
+    weights = cfg["weights"]
+    # Sort by weight (descending) for better readability
+    sorted_weights = sorted(weights.items(), key=lambda x: abs(x[1]), reverse=True)
+    
+    total_weight = 0
+    for ticker, weight in sorted_weights:
+        print(f"{ticker:<8} {weight:>7.2%}")
+        total_weight += weight
+    
+    print("─" * 18)
+    print(f"{'Total':<8} {total_weight:>7.2%}")
+    print()
 
-    print("\n=== Dollar Exposure ===")
-    print(cfg["dollar_exposure"])
+    print("=== DOLLAR EXPOSURE BY POSITION ===")
+    dollar_exp = cfg["dollar_exposure"]
+    # Sort by absolute dollar exposure (descending) for better readability
+    sorted_dollar = sorted(dollar_exp.items(), key=lambda x: abs(x[1]), reverse=True)
+    
+    total_dollar = 0
+    for ticker, amount in sorted_dollar:
+        # Format with appropriate precision based on amount size
+        if abs(amount) >= 1000:
+            print(f"{ticker:<8} ${amount:>12,.0f}")
+        else:
+            print(f"{ticker:<8} ${amount:>12,.2f}")
+        total_dollar += amount
+    
+    print("─" * 22)
+    if abs(total_dollar) >= 1000:
+        print(f"{'Total':<8} ${total_dollar:>12,.0f}")
+    else:
+        print(f"{'Total':<8} ${total_dollar:>12,.2f}")
+    print()
 
-    print("\n=== Total Portfolio Value ===")
-    print(cfg["total_value"])
+    print("=== TOTAL PORTFOLIO VALUE ===")
+    total_val = cfg["total_value"]
+    if abs(total_val) >= 1000:
+        print(f"${total_val:,.0f}")
+    else:
+        print(f"${total_val:,.2f}")
+    
+    print("\n=== NET EXPOSURE (sum of weights) ===")
+    print(f"{cfg['net_exposure']:.2f}")
+    
+    print("\n=== GROSS EXPOSURE (sum of abs(weights)) ===")
+    print(f"{cfg['gross_exposure']:.2f}")
+    
+    print("\n=== LEVERAGE (gross / net) ===")
+    print(f"{cfg['leverage']:.2f}x")
 
-    print("\n=== Net Exposure (sum of weights) ===")
-    print(cfg["net_exposure"])
-
-    print("\n=== Gross Exposure (sum of abs(weights)) ===")
-    print(cfg["gross_exposure"])
-
-    print("\n=== Leverage (gross / net) ===")
-    print(cfg["leverage"])
-
-    print("\n=== Expected Returns ===")
-    pprint(cfg["expected_returns"])
+    print("\n=== EXPECTED RETURNS ===")
+    expected_returns = cfg["expected_returns"]
+    # Sort by expected return (descending) for better readability
+    sorted_returns = sorted(expected_returns.items(), key=lambda x: x[1], reverse=True)
+    
+    for ticker, return_val in sorted_returns:
+        print(f"{ticker:<8} {return_val:>7.2%}")
 
     print("\n=== Stock Factor Proxies ===")
     for ticker, proxies in cfg["stock_factor_proxies"].items():
