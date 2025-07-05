@@ -128,7 +128,6 @@ def standardize_portfolio_input(
         if t not in cash_positions or w < 0  # Include negative cash positions (margin debt)
     }
     
-    risky_weights = {t: w for t, w in weights.items() if t not in cash_positions}
     net_exposure = sum(risky_weights.values())
     gross_exposure = sum(abs(w) for w in risky_weights.values())
 
