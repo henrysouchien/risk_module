@@ -46,6 +46,18 @@ from portfolio_risk import (
 
 from typing import Dict, Callable, Union
 
+# Auto-detect cash positions from cash_map.yaml
+def get_cash_positions():
+    try:
+        with open("cash_map.yaml", "r") as f:
+            cash_map = yaml.safe_load(f)
+            return set(cash_map.get("proxy_by_currency", {}).values())
+    except FileNotFoundError:
+        # Fallback to common cash proxies
+        return {"SGOV", "ESTR", "IB01", "CASH", "USD"}
+
+cash_positions = get_cash_positions()
+
 def standardize_portfolio_input(
     raw_input: Dict[str, Dict[str, Union[float, int]]],
     price_fetcher: Callable[[str], float]
@@ -86,8 +98,15 @@ def standardize_portfolio_input(
         weights = {t: float(v["weight"]) for t, v in raw_input.items()}
         normalized_weights = normalize_weights(weights)
 
-        net_exposure = sum(weights.values())
-        gross_exposure = sum(abs(w) for w in weights.values())
+        # Calculate exposure excluding only POSITIVE cash positions
+        # Negative cash positions (margin debt) should be included
+        risky_weights = {
+            t: w for t, w in weights.items() 
+            if t not in cash_positions or w < 0  # Include negative cash positions (margin debt)
+        }
+        net_exposure = sum(risky_weights.values())
+        gross_exposure = sum(abs(w) for w in risky_weights.values())
+
         leverage = gross_exposure / net_exposure if net_exposure != 0 else np.inf
         
         return {
@@ -102,8 +121,17 @@ def standardize_portfolio_input(
     total_value = sum(dollar_exposure.values())
     weights = {t: v / total_value for t, v in dollar_exposure.items()}
 
-    net_exposure = sum(weights.values())
-    gross_exposure = sum(abs(w) for w in weights.values())
+    # Calculate exposure excluding only POSITIVE cash positions
+    # Negative cash positions (margin debt) should be included
+    risky_weights = {
+        t: w for t, w in weights.items() 
+        if t not in cash_positions or w < 0  # Include negative cash positions (margin debt)
+    }
+    
+    risky_weights = {t: w for t, w in weights.items() if t not in cash_positions}
+    net_exposure = sum(risky_weights.values())
+    gross_exposure = sum(abs(w) for w in risky_weights.values())
+
     leverage = gross_exposure / net_exposure if net_exposure else np.inf
 
     return {
