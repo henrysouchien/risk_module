@@ -409,6 +409,76 @@ def run_stock(
         print("\n=== Market Regression (SPY) ===")
         print(result["risk_metrics"])
 
+def run_portfolio_performance(filepath: str):
+    """
+    Calculate and display comprehensive portfolio performance metrics.
+
+    Workflow
+    --------
+    * Parse the portfolio YAML file.
+    * Standardise the raw positions → weights.
+    * Call :func:`portfolio_risk.calculate_portfolio_performance_metrics` to
+      compute returns, volatility, Sharpe ratio, alpha, beta, max drawdown,
+      and other risk-adjusted performance metrics vs benchmark.
+    * Display results using :func:`run_portfolio_risk.display_portfolio_performance_metrics`.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the portfolio YAML file.
+
+    Notes
+    -----
+    * Uses the **start_date** and **end_date** from the portfolio YAML for
+      the performance analysis window.
+    * Defaults to SPY as benchmark but can be customized.
+    * Uses 3-month Treasury rates from FMP API as risk-free rate.
+    * All output is written to stdout; the function does not return anything.
+    """
+    from portfolio_risk import calculate_portfolio_performance_metrics
+    from run_portfolio_risk import display_portfolio_performance_metrics
+    
+    print("📊 Portfolio Performance Analysis")
+    print("=" * 50)
+    
+    try:
+        # Load portfolio configuration
+        config = load_portfolio_config(filepath)
+        
+        # Standardize portfolio weights
+        weights = standardize_portfolio_input(config["portfolio_input"], latest_price)["weights"]
+        
+        print(f"📁 Portfolio file: {filepath}")
+        print(f"📅 Analysis period: {config['start_date']} to {config['end_date']}")
+        print(f"📊 Positions: {len(weights)}")
+        print()
+        
+        # Calculate performance metrics
+        print("🔄 Calculating performance metrics...")
+        performance_metrics = calculate_portfolio_performance_metrics(
+            weights=weights,
+            start_date=config["start_date"],
+            end_date=config["end_date"],
+            benchmark_ticker="SPY"  # Could make this configurable later
+        )
+        
+        # Check for calculation errors
+        if "error" in performance_metrics:
+            print(f"❌ Performance calculation failed: {performance_metrics['error']}")
+            return
+        
+        print("✅ Performance calculation successful!")
+        
+        # Display the results
+        display_portfolio_performance_metrics(performance_metrics)
+        
+    except FileNotFoundError:
+        print(f"❌ Error: Portfolio file '{filepath}' not found")
+    except Exception as e:
+        print(f"❌ Error during performance analysis: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--portfolio", type=str, help="Path to YAML portfolio file")
@@ -418,6 +488,7 @@ if __name__ == "__main__":
     parser.add_argument("--whatif", action="store_true", help="Run what-if scenario")
     parser.add_argument("--minvar", action="store_true", help="Run min-variance optimization")
     parser.add_argument("--maxreturn", action="store_true", help="Run max-return optimization")
+    parser.add_argument("--performance", action="store_true", help="Run portfolio performance analysis")
     parser.add_argument("--scenario", type=str, help="Path to what-if scenario YAML file")
     parser.add_argument("--delta", type=str, help='Inline weight shifts, e.g. "TW:+500bp,PCTY:-200bp"')
     parser.add_argument("--inject_proxies", action="store_true", help="Inject market, industry, and optional subindustry proxies")
@@ -436,6 +507,9 @@ if __name__ == "__main__":
     
     elif args.portfolio and args.maxreturn:
         run_max_return(args.portfolio)
+
+    elif args.portfolio and args.performance:
+        run_portfolio_performance(args.portfolio)
         
     elif args.portfolio and args.gpt:
         run_and_interpret(args.portfolio)
