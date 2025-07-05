@@ -807,7 +807,7 @@ def calculate_portfolio_performance_metrics(
             "win_loss_ratio": round(win_loss_ratio, 2)
         },
         "risk_free_rate": round(risk_free_rate * 100, 2),
-        "monthly_returns": port_ret.round(4).to_dict()
+        "monthly_returns": {k.date().isoformat(): float(v) for k, v in port_ret.round(4).to_dict().items()}
     }
     
     return performance_metrics
