@@ -127,7 +127,6 @@ def standardize_portfolio_input(
         t: w for t, w in weights.items() 
         if t not in cash_positions or w < 0  # Include negative cash positions (margin debt)
     }
-    
     net_exposure = sum(risky_weights.values())
     gross_exposure = sum(abs(w) for w in risky_weights.values())
 
@@ -210,7 +209,7 @@ def display_portfolio_config(cfg: Dict[str, Any]) -> None:
     """
     Nicely print the fields produced by load_portfolio_config().
     """
-    print("=== PORTFOLIO ALLOCATIONS BEING ANALYZED ===")
+    print("=== PORTFOLIO ALLOCATIONS BEING ANALYZED (Normalized Weights) ===")
     weights = cfg["weights"]
     # Sort by weight (descending) for better readability
     sorted_weights = sorted(weights.items(), key=lambda x: abs(x[1]), reverse=True)
