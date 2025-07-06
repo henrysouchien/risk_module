@@ -200,10 +200,12 @@ RAM Cache (LRU) → Disk Cache (Parquet) → Network (FMP API)
 
 **Treasury Rate Integration**:
 The system now uses professional-grade risk-free rates from the FMP Treasury API instead of ETF price movements:
-- `fetch_monthly_treasury_rates()`: Retrieves 3-month Treasury yields
-- Proper date range filtering for historical analysis
+- `get_treasury_rate_from_fmp()`: Core function to fetch 3-month Treasury rates from FMP API
+- `fetch_monthly_treasury_rates()`: Retrieves historical Treasury yields with date filtering
+- Proper date range filtering for historical analysis aligned with portfolio periods
 - Cache-enabled for performance with monthly resampling
 - Eliminates contamination from bond price fluctuations in rate calculations
+- Integrated into `calculate_portfolio_performance_metrics()` for accurate Sharpe ratio calculations
 
 ### 2. Factor Analysis (`factor_utils.py`)
 
@@ -241,8 +243,8 @@ The system now uses professional-grade risk-free rates from the FMP Treasury API
 
 **Key Functions**:
 - `calculate_portfolio_performance_metrics()`: Calculate returns, Sharpe ratio, alpha, beta, max drawdown
-- `get_treasury_rate_from_fmp()`: Fetch risk-free rates from FMP Treasury API
-- `fetch_monthly_treasury_rates()`: Retrieve historical Treasury rates with caching
+- `get_treasury_rate_from_fmp()`: Fetch 3-month Treasury rates from FMP API with error handling
+- `fetch_monthly_treasury_rates()`: Retrieve historical Treasury rates with caching and date filtering
 
 **Features**:
 - Historical return analysis with proper compounding
@@ -638,6 +640,7 @@ alias_to_currency:        # Broker cash tickers → currency
 
 **Endpoints Used**:
 - `/historical-price-eod/full`: End-of-day price data
+- `/treasury`: 3-month Treasury yields for risk-free rate calculations
 - Parameters: symbol, from, to, apikey, serietype
 
 **Data Processing**:

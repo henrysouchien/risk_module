@@ -8,11 +8,12 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 
 - **Multi-Factor Risk Analysis**: Understand how market forces affect your portfolio to make better allocation decisions
 - **Portfolio Risk Decomposition**: See which positions drive your risk to know where to focus your risk management
+- **Comprehensive Risk Scoring**: Credit-score-like rating (0-100) with detailed component analysis and historical stress testing
 - **Portfolio Performance Analysis**: Calculate comprehensive performance metrics including returns, Sharpe ratio, alpha, beta, and maximum drawdown
 - **Single-Stock Risk Profiles**: Analyze individual stocks to make informed buy/sell decisions
+- **Risk Limit Monitoring**: Get alerts when your portfolio exceeds your risk tolerance with suggested limits
 - **Data Caching**: Fast, reliable data access for consistent analysis
 - **YAML Configuration**: Easy portfolio setup and risk limit management
-- **Risk Limit Monitoring**: Get alerts when your portfolio exceeds your risk tolerance
 - **Centralized Settings**: Consistent analysis across different portfolios
 
 ## 🤖 AI Assistant Guidelines
@@ -27,7 +28,7 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 - `run_what_if()` - Scenario testing for portfolio changes
 - `run_min_variance()` - Lowest risk portfolio optimization
 - `run_max_return()` - Maximum return portfolio optimization
-- `portfolio_risk_score()` - Risk scoring (0-100) with recommendations
+- `run_risk_score_analysis()` - Complete risk score analysis with detailed reporting
 
 **Common User Requests:**
 - "Set up a new portfolio" → Use `inject_all_proxies()` first, then `run_portfolio()`
@@ -39,9 +40,10 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 - "What if I reduce position X?" → Use `run_what_if()` function
 - "Optimize for minimum risk" → Use `run_min_variance()` function
 - "Optimize for maximum return" → Use `run_max_return()` function
-- "What's my risk score?" → Use `portfolio_risk_score()` function
-- "Why is my risk score low?" → Check factor exposures and concentration
-- "How do I improve my portfolio?" → Review risk score breakdown and recommendations
+- "What's my risk score?" → Use `run_risk_score_analysis()` for complete analysis
+- "Why is my risk score low?" → Check component breakdown in risk score analysis
+- "How do I improve my portfolio?" → Review risk score recommendations and suggested limits
+- "What are my risk limits?" → Use `run_risk_score_analysis()` for suggested limits
 
 **Key Configuration Files:**
 - `portfolio.yaml` - Portfolio weights and factor proxies
@@ -49,11 +51,19 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 - `settings.py` - Default parameters
 
 **Risk Score Interpretation:**
-- 90-100: Excellent (monitor and maintain)
-- 80-89: Good (minor adjustments may be needed)
-- 70-79: Fair (consider risk reduction)
-- 60-69: Poor (significant action recommended)
-- 0-59: Very Poor (immediate action required)
+The risk score measures "disruption risk" - how likely your portfolio is to exceed your maximum acceptable loss in various failure scenarios.
+
+- **90-100 (Excellent)**: Very low disruption risk - all potential losses well within limits
+- **80-89 (Good)**: Acceptable disruption risk - minor risk management improvements recommended
+- **70-79 (Fair)**: Moderate disruption risk - some potential losses exceed limits, improvements needed
+- **60-69 (Poor)**: High disruption risk - multiple losses exceed limits, significant action required
+- **0-59 (Very Poor)**: Portfolio needs immediate restructuring to avoid unacceptable losses
+
+**Component Scores:**
+- **Factor Risk (35%)**: Market/value/momentum exposure vs. historical worst losses
+- **Concentration Risk (30%)**: Position sizes and diversification vs. single-stock failure scenarios
+- **Volatility Risk (20%)**: Portfolio volatility level vs. maximum reasonable volatility
+- **Sector Risk (15%)**: Sector concentration vs. historical sector crashes
 
 **Common Issues:**
 - NaN values → Insufficient data for peer analysis
@@ -68,6 +78,7 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 - `run_what_if(portfolio_changes)` - Test portfolio modifications
 - `run_min_variance()` - Optimize for minimum risk
 - `run_max_return(expected_returns)` - Optimize for maximum return
+- `run_risk_score_analysis(portfolio_yaml="portfolio.yaml", risk_yaml="risk_limits.yaml")` - Complete risk analysis score
 - `portfolio_risk_score()` - Returns (score, breakdown, recommendations)
 - `inject_all_proxies(use_gpt_subindustry=False)` - Set up factor proxies
 
@@ -91,6 +102,7 @@ risk_module/
 ├── data_loader.py          # Data fetching and caching layer
 ├── factor_utils.py         # Factor analysis and regression utilities
 ├── portfolio_risk.py       # Portfolio-level risk calculations
+├── portfolio_risk_score.py # Comprehensive risk scoring (0-100) with detailed analysis
 ├── risk_summary.py         # Single-stock risk profiling
 ├── run_portfolio_risk.py   # Main portfolio analysis execution
 ├── run_risk.py            # Risk analysis runner
@@ -105,6 +117,7 @@ risk_module/
 - **Data Layer** (`data_loader.py`): FMP API integration with intelligent caching
 - **Factor Utils** (`factor_utils.py`): Multi-factor regression and volatility calculations
 - **Portfolio Engine** (`portfolio_risk.py`): Portfolio risk decomposition and analysis
+- **Risk Scoring** (`portfolio_risk_score.py`): Comprehensive 0-100 risk scoring with historical stress testing
 - **Stock Profiler** (`risk_summary.py`): Individual stock factor exposure analysis
 - **Settings Manager** (`settings.py`): Centralized default configuration
 
@@ -171,12 +184,18 @@ risk_module/
    run_portfolio_performance("portfolio.yaml")
    ```
 
-4. **Get risk score**:
+4. **Get comprehensive risk score**:
    ```python
-   from portfolio_risk_score import portfolio_risk_score
+   from portfolio_risk_score import run_risk_score_analysis
    
-   # Get 0-100 risk score with recommendations
-   score, breakdown = portfolio_risk_score()
+   # Get complete risk analysis with detailed reporting
+   results = run_risk_score_analysis("portfolio.yaml", "risk_limits.yaml")
+   
+   # Access components
+   risk_score = results["risk_score"]
+   print(f"Score: {risk_score['score']}/100 ({risk_score['category']})")
+   print(f"Component scores: {risk_score['component_scores']}")
+   print(f"Recommendations: {risk_score['recommendations']}")
    ```
 
 ### Command-Line Interface
@@ -189,6 +208,9 @@ python run_risk.py --portfolio portfolio.yaml
 
 # Portfolio performance analysis
 python run_risk.py --portfolio portfolio.yaml --performance
+
+# Comprehensive risk score analysis (0-100 with detailed reporting)
+python portfolio_risk_score.py
 
 # Single stock analysis
 python run_risk.py --stock AAPL
@@ -218,6 +240,32 @@ This will:
 - Perform multi-factor regression analysis
 - Calculate portfolio risk metrics
 - Generate comprehensive risk report
+
+### Comprehensive Risk Score Analysis
+
+Get a credit-score-like rating (0-100) for your portfolio with detailed analysis:
+
+```python
+from portfolio_risk_score import run_risk_score_analysis
+
+# Complete risk score analysis with detailed reporting
+results = run_risk_score_analysis("portfolio.yaml", "risk_limits.yaml")
+
+# The analysis provides:
+# - Overall risk score (0-100) with category (Excellent/Good/Fair/Poor/Very Poor)
+# - Component scores for factor, concentration, volatility, and sector risks
+# - Detailed risk limit violations and specific recommendations
+# - Suggested risk limits based on your loss tolerance
+# - Historical worst-case scenario analysis
+```
+
+This comprehensive analysis will:
+- Calculate your portfolio's disruption risk vs. your maximum acceptable loss
+- Break down risk into four components: factor (35%), concentration (30%), volatility (20%), sector (15%)
+- Identify specific risk limit violations with actionable recommendations
+- Suggest appropriate risk limits based on your risk tolerance
+- Use historical worst-case scenarios for realistic stress testing
+- Provide color-coded, credit-score-like reporting for easy interpretation
 
 ### Portfolio Performance Analysis
 
@@ -343,6 +391,18 @@ variance_limits:
 ```
 
 ## 📈 Output Examples
+
+### Comprehensive Risk Score Report
+
+The comprehensive risk score analysis provides a credit-score-like report with:
+
+- **Overall Risk Score (0-100)**: Single number measuring disruption risk with clear category (Excellent/Good/Fair/Poor/Very Poor)
+- **Component Breakdown**: Detailed scores for factor risk (35%), concentration risk (30%), volatility risk (20%), and sector risk (15%)
+- **Risk Interpretation**: Color-coded assessment with specific explanations of what each score means
+- **Actionable Recommendations**: Specific suggestions for improving your portfolio risk profile
+- **Limit Violations**: Detailed analysis of which risk limits are being exceeded and by how much
+- **Suggested Risk Limits**: Backwards-calculated appropriate limits based on your maximum acceptable loss
+- **Historical Context**: Stress testing based on actual historical worst-case scenarios
 
 ### Portfolio Risk Summary
 
