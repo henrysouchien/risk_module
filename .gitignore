@@ -25,3 +25,4 @@ risk_module_secrets/
 update_secrets.sh
 frontend/
 cookies.txt
+alignment_table.md
