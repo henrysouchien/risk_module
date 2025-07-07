@@ -69,7 +69,7 @@ def compute_regression_metrics(df: pd.DataFrame) -> Dict[str, float]:
             "beta":      float,  # slope coefficient
             "alpha":     float,  # intercept
             "r_squared": float,  # model R²
-            "idio_vol":  float   # std deviation of residuals
+            "idio_vol_m":  float   # std deviation of residuals
         }
     """
     X     = sm.add_constant(df["market"])
