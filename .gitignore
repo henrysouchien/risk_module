@@ -10,6 +10,18 @@ risk_module_secrets/
 update_secrets.sh
 
 # =============================================================================
+# NEW SENSITIVE FILES & INTERFACE ARCHITECTURE
+# =============================================================================
+routes/
+services/
+utils/
+inputs/
+frontend/
+INTERFACE_ARCHITECTURE.md
+INTERFACE_README.md
+test_all_interfaces.py
+
+# =============================================================================
 # PYTHON SPECIFIC
 # =============================================================================
 __pycache__/
@@ -52,16 +64,6 @@ Archive/
 Docs/
 alignment_table.md
 
-# Application architecture and business logic
-routes/
-services/
-utils/
-inputs/
-INTERFACE_ARCHITECTURE.md
-INTERFACE_README.md
-test_all_interfaces.py
-frontend/src/App.js
-
 # =============================================================================
 # SYSTEM FILES
 # =============================================================================
@@ -72,9 +74,3 @@ frontend/src/App.js
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# =============================================================================
-# FRONTEND
-# =============================================================================
-# Frontend source code is tracked - see frontend/.gitignore for build artifacts
-# Frontend dependencies and build files are handled by frontend/.gitignore
