@@ -34,6 +34,12 @@ The system includes robust data quality validation to prevent unstable factor ca
 - **Configuration-Driven**: YAML-based configuration for flexibility
 - **Extensible**: Easy to add new factors, risk metrics, and data sources
 
+### Interface Layer
+
+For web interface, REST API, and Claude AI chat integration, see:
+- **[Interface README](INTERFACE_README.md)** - User guide for REST API, Claude chat, and web interface
+- **[Interface Architecture](INTERFACE_ARCHITECTURE.md)** - Technical architecture of the interface layer
+
 ## 🏗️ Architecture Layers
 
 The system follows a layered architecture pattern with clear separation of concerns:

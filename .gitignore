@@ -52,6 +52,16 @@ Archive/
 Docs/
 alignment_table.md
 
+# Application architecture and business logic
+routes/
+services/
+utils/
+inputs/
+INTERFACE_ARCHITECTURE.md
+INTERFACE_README.md
+test_all_interfaces.py
+frontend/src/App.js
+
 # =============================================================================
 # SYSTEM FILES
 # =============================================================================

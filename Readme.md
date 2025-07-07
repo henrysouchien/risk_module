@@ -16,6 +16,12 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 - **YAML Configuration**: Easy portfolio setup and risk limit management
 - **Centralized Settings**: Consistent analysis across different portfolios
 
+## 🌐 Interface Layer
+
+For web interface, REST API, and Claude AI chat integration, see:
+- **[Interface README](INTERFACE_README.md)** - User guide for REST API, Claude chat, and web interface
+- **[Interface Architecture](INTERFACE_ARCHITECTURE.md)** - Technical architecture of the interface layer
+
 ## 🤖 AI Assistant Guidelines
 
 **For AI assistants helping users with this risk module:**
