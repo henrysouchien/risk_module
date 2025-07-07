@@ -71,7 +71,7 @@ def generate_subindustry_peers(
     model: str = "gpt-4.1",    # any available chat model
     max_tokens: int = 200,
     temperature: float = 0.2,
-) -> List[str]:
+) -> str:
     """
     Uses GPT to generate a peer group of subindustry tickers for a given stock.
 
@@ -97,15 +97,15 @@ def generate_subindustry_peers(
 
     Returns
     -------
-    List[str]
+    Str
         The raw GPT response content as a string (still needs `ast.literal_eval()` parsing).
-        Returns an empty list on error or if the model response is malformed.
+        Returns an empty str on error or if the model response is malformed.
 
     Notes
     -----
     • This function does **not** parse the GPT output into a Python list. That is handled downstream.
     • The model is instructed to return only a Python list of valid, public tickers from the U.S., U.K., or Canada.
-    • Failures (API issues, unexpected formats) return an empty list and print full stack trace.
+    • Failures (API issues, unexpected formats) return an empty string and print full stack trace.
 
     Example Output
     --------------
@@ -164,5 +164,6 @@ Industry: {industry}
         # Log full traceback so the root cause is visible
         print(f"⚠️ generate_subindustry_peers failed for {ticker}: {e}")
         traceback.print_exc()
-        return []
+        return ""
+
 
