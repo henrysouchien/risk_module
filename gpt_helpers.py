@@ -97,9 +97,9 @@ def generate_subindustry_peers(
 
     Returns
     -------
-    Str
+    str
         The raw GPT response content as a string (still needs `ast.literal_eval()` parsing).
-        Returns an empty str on error or if the model response is malformed.
+        Returns an empty string on error or if the model response is malformed.
 
     Notes
     -----
