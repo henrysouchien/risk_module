@@ -16,6 +16,7 @@ from factor_utils import (
     fetch_excess_return,
     fetch_peer_median_monthly_returns,
     compute_stock_factor_betas,
+    calc_weighted_factor_variance,
 )
 
 def normalize_weights(weights: Dict[str, float], normalize: bool = True) -> Dict[str, float]:
@@ -492,8 +493,7 @@ def build_portfolio_view(
         betas_filled = df_stock_betas.infer_objects(copy=False).fillna(0.0)
 
         # ----- weighted factor variance  w_i² β_i,f² σ_i,f² -----------------------
-        weighted_factor_var = betas_filled.pow(2) * df_factor_vols.pow(2)
-        weighted_factor_var = weighted_factor_var.mul(w2, axis=0)
+        weighted_factor_var = calc_weighted_factor_variance(weights, betas_filled, df_factor_vols)
 
     # ─── 2b. Euler variance attribution  -------------------------------
     cov_annual = cov_mat * 12                       # annualise Σ (12× monthly)

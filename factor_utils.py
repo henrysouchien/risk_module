@@ -222,25 +222,47 @@ def calc_factor_vols(
     k = 12 ** 0.5 if annualize else 1.0
     return {name: float(series.std(ddof=1) * k) for name, series in factor_dict.items()}
 
-
 def calc_weighted_factor_variance(
     weights: Dict[str, float],
     betas_df: pd.DataFrame,
-    factor_vols: Dict[str, float]
+    df_factor_vols: pd.DataFrame
 ) -> pd.DataFrame:
     """
     Weighted factor variance for each (asset, factor):
 
        w_i² · β_i,f² · σ_f²
 
-    weights      – {"PCTY": 0.15, ...}
-    betas_df     – DataFrame index=tickers, columns=factors, values=β
-    factor_vols  – {"market": 0.18, ...}  (annual σ, *not* %)
+    Args:
+        weights (Dict[str, float]): Portfolio weights {"PCTY": 0.15, ...}
+        betas_df (pd.DataFrame): DataFrame index=tickers, columns=factors, values=β
+        df_factor_vols (pd.DataFrame): Factor volatilities DataFrame, same structure as betas_df
 
-    Returns DataFrame same shape as betas_df.
+    Returns:
+        pd.DataFrame: Weighted factor variance contributions, same shape as betas_df.
+        
+    Note:
+        - NaN betas → 0.0
+        - Missing factors → 0.0  
+        - Asset mismatches → 0.0
     """
-    w2 = pd.Series(weights).pow(2)
-    sigma2 = {f: v ** 2 for f, v in factor_vols.items()}
-    var_df = betas_df.pow(2) * pd.DataFrame(sigma2, index=["__tmp__"]).T   # β² σ²
-    return var_df.mul(w2, axis=0)   # multiply each row by w_i²
+    # Handle empty inputs
+    if not weights or betas_df.empty or df_factor_vols.empty:
+        return pd.DataFrame(
+            0.0,
+            index=betas_df.index if not betas_df.empty else [],
+            columns=betas_df.columns if not betas_df.empty else []
+        )
+    
+    # Clean tables & fill NaNs with 0 (exact portfolio_risk.py pattern)
+    df_factor_vols = df_factor_vols.fillna(0.0)
+    betas_filled = betas_df.fillna(0.0)
+    
+    # Handle weights with asset safety (only addition to your pattern)
+    w2 = pd.Series(weights).reindex(betas_df.index).fillna(0.0).pow(2)
+    
+    # Your proven calculation: w_i² β_i,f² σ_i,f²
+    weighted_factor_var = betas_filled.pow(2) * df_factor_vols.pow(2)
+    weighted_factor_var = weighted_factor_var.mul(w2, axis=0)
+    
+    return weighted_factor_var
 
