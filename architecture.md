@@ -556,13 +556,16 @@ The risk module implements a comprehensive mathematical framework for portfolio 
 
 ### Flask Web App (`app.py`)
 
-**Production-Ready Features**:
+**Production-Ready Features** (3,156 lines):
+- **Google OAuth Authentication**: Secure user management and session handling
 - **Multi-Tier Access Control**: Public/Registered/Paid user tiers with rate limiting
-- **Portfolio Configuration Interface**: Web-based YAML editor
-- **Risk Analysis Execution**: Server-side portfolio analysis
-- **API Key Management**: Secure key generation and validation
-- **Usage Analytics**: Comprehensive logging and tracking
-- **Export Functionality**: Download analysis results
+- **Plaid Integration**: Real-time portfolio import from brokerage accounts
+- **Claude AI Chat**: Interactive risk analysis assistance and natural language queries
+- **RESTful API**: Multiple endpoints for portfolio analysis and risk scoring
+- **Portfolio Configuration Interface**: Web-based YAML editor and management
+- **Risk Analysis Execution**: Server-side portfolio analysis with export functionality
+- **Admin Dashboard**: Usage tracking, cache management, and system monitoring
+- **API Key Management**: Secure key generation, validation, and Kartra integration
 
 **Rate Limiting Strategy**:
 ```python

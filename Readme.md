@@ -72,15 +72,14 @@ The risk score measures "disruption risk" - how likely your portfolio is to exce
 - Optimization infeasible → Risk limits too restrictive
 
 **Function Parameters:**
-- `run_portfolio()` - No parameters, reads from portfolio.yaml
+- `run_portfolio(filepath)` - Full portfolio analysis from YAML file
 - `run_portfolio_performance(filepath)` - Calculate performance metrics from YAML file
-- `run_stock(ticker, start_date=None, end_date=None)` - Analyze single stock
-- `run_what_if(portfolio_changes)` - Test portfolio modifications
-- `run_min_variance()` - Optimize for minimum risk
-- `run_max_return(expected_returns)` - Optimize for maximum return
+- `run_stock(ticker, start=None, end=None, factor_proxies=None, yaml_path=None)` - Analyze single stock
+- `run_what_if(filepath, scenario_yaml=None, delta=None)` - Test portfolio modifications
+- `run_min_variance(filepath)` - Optimize for minimum risk from YAML file
+- `run_max_return(filepath)` - Optimize for maximum return from YAML file
 - `run_risk_score_analysis(portfolio_yaml="portfolio.yaml", risk_yaml="risk_limits.yaml")` - Complete risk analysis score
-- `portfolio_risk_score()` - Returns (score, breakdown, recommendations)
-- `inject_all_proxies(use_gpt_subindustry=False)` - Set up factor proxies
+- `inject_all_proxies(yaml_path="portfolio.yaml", use_gpt_subindustry=False)` - Set up factor proxies
 
 ## 📊 What It Does
 
@@ -95,31 +94,20 @@ This risk module helps you make better investment decisions by:
 
 ## 🏗️ Architecture
 
-The system is built with a modular, layered architecture:
-
-```
-risk_module/
-├── data_loader.py          # Data fetching and caching layer
-├── factor_utils.py         # Factor analysis and regression utilities
-├── portfolio_risk.py       # Portfolio-level risk calculations
-├── portfolio_risk_score.py # Comprehensive risk scoring (0-100) with detailed analysis
-├── risk_summary.py         # Single-stock risk profiling
-├── run_portfolio_risk.py   # Main portfolio analysis execution
-├── run_risk.py            # Risk analysis runner
-├── settings.py            # Default configuration settings
-├── portfolio.yaml         # Portfolio configuration
-├── risk_limits.yaml       # Risk limit definitions
-└── helpers_*.py           # Utility modules
-```
+The system is built with a modular, layered architecture designed for maintainability, testability, and extensibility:
 
 ### Core Components
 
-- **Data Layer** (`data_loader.py`): FMP API integration with intelligent caching
-- **Factor Utils** (`factor_utils.py`): Multi-factor regression and volatility calculations
-- **Portfolio Engine** (`portfolio_risk.py`): Portfolio risk decomposition and analysis
-- **Risk Scoring** (`portfolio_risk_score.py`): Comprehensive 0-100 risk scoring with historical stress testing
-- **Stock Profiler** (`risk_summary.py`): Individual stock factor exposure analysis
-- **Settings Manager** (`settings.py`): Centralized default configuration
+- **Risk Analysis Engine** (`portfolio_risk.py`): Portfolio risk calculations, performance metrics, and factor decomposition
+- **Risk Scoring System** (`portfolio_risk_score.py`): Comprehensive 0-100 risk scoring with historical stress testing and disruption risk analysis
+- **Factor Analytics** (`factor_utils.py`): Multi-factor regression, volatility calculations, and factor exposure analysis
+- **Portfolio Optimizer** (`portfolio_optimizer.py`): Minimum variance and maximum return optimization with risk constraints
+- **Stock Profiler** (`risk_summary.py`): Individual stock factor exposure and risk analysis
+- **Data Integration** (`data_loader.py`): FMP API integration with intelligent caching and Treasury rate data
+- **Plaid Integration** (`plaid_loader.py`): Automatic portfolio import from brokerage accounts
+- **Proxy Builder** (`proxy_builder.py`): Automated factor proxy generation with GPT-powered peer analysis
+- **Web Application** (`app.py`): Production Flask app with OAuth, API endpoints, and AI chat integration
+- **Command Interface** (`run_risk.py`): Unified command-line interface for all analysis functions
 
 ## 🛠️ Installation
 
@@ -162,10 +150,10 @@ risk_module/
    from run_risk import run_portfolio
    
    # Set up factor proxies for new portfolio
-   inject_all_proxies(use_gpt_subindustry=True)
+   inject_all_proxies("portfolio.yaml", use_gpt_subindustry=True)
    
    # Run full portfolio analysis
-   run_portfolio()
+   run_portfolio("portfolio.yaml")
    ```
 
 2. **Analyze existing portfolio**:
@@ -173,7 +161,7 @@ risk_module/
    from run_risk import run_portfolio
    
    # Run analysis on existing portfolio.yaml
-   run_portfolio()
+   run_portfolio("portfolio.yaml")
    ```
 
 3. **Calculate portfolio performance**:
@@ -210,7 +198,7 @@ python run_risk.py --portfolio portfolio.yaml
 python run_risk.py --portfolio portfolio.yaml --performance
 
 # Comprehensive risk score analysis (0-100 with detailed reporting)
-python portfolio_risk_score.py
+python -c "from portfolio_risk_score import run_risk_score_analysis; run_risk_score_analysis()"
 
 # Single stock analysis
 python run_risk.py --stock AAPL
@@ -231,7 +219,7 @@ Run a complete portfolio risk analysis:
 from run_risk import run_portfolio
 
 # Full portfolio analysis with risk decomposition
-run_portfolio()
+run_portfolio("portfolio.yaml")
 ```
 
 This will:
@@ -709,20 +697,29 @@ Maximum allowable portfolio volatility constraint for risk management.
 
 ### Flask Web App (`app.py`)
 
-The risk module includes a production-ready Flask web application that makes risk analysis accessible to anyone:
+The risk module includes a production-ready Flask web application (3,000+ lines) that makes risk analysis accessible to anyone:
 
 **Features:**
-- **Portfolio Configuration**: Easy web-based setup for your portfolio
-- **Risk Analysis**: Get actionable insights through a simple web interface
-- **Rate Limiting**: Fair usage limits to ensure quality service for all users
-- **API Key Management**: Secure access to protect your data
-- **Usage Tracking**: Monitor your analysis history and trends
-- **Export Functionality**: Download your risk reports for record-keeping
+- **Google OAuth Authentication**: Secure user management and session handling
+- **Plaid Integration**: Automatic portfolio import from brokerage accounts
+- **Claude AI Chat**: Interactive risk analysis assistance and natural language queries
+- **RESTful API**: Multiple endpoints for portfolio analysis and risk scoring
+- **Rate Limiting**: Tiered access control with fair usage policies
+- **Admin Dashboard**: Usage tracking, cache management, and system monitoring
+- **Export Functionality**: Download analysis results and portfolio reports
 
 **Access Tiers:**
 - **Public**: Limited daily usage (5 analyses/day)
-- **Registered**: Enhanced limits (15 analyses/day)
-- **Paid**: Full access (30 analyses/day)
+- **Registered**: Enhanced limits (15 analyses/day) + Google OAuth access
+- **Paid**: Full access (30 analyses/day) + priority support
+
+**API Endpoints:**
+- `POST /api/analyze` - Portfolio risk analysis
+- `POST /api/risk-score` - Risk score calculation (0-100)
+- `POST /api/portfolio-analysis` - Comprehensive portfolio analysis
+- `POST /api/claude_chat` - AI assistant interaction
+- `GET /plaid/holdings` - Get Plaid portfolio data
+- `GET /api/health` - System health check
 
 **Usage:**
 ```bash
@@ -731,6 +728,11 @@ python app.py
 
 # Access via browser
 http://localhost:5000
+
+# API usage example
+curl -X POST http://localhost:5000/api/analyze?key=your_api_key \
+  -H "Content-Type: application/json" \
+  -d '{"portfolio": {"AAPL": 0.6, "MSFT": 0.4}}'
 ```
 
 ## 🔗 Additional Integrations
@@ -806,60 +808,105 @@ The system includes several ways to test your portfolio analysis:
 
 ```python
 from run_risk import run_portfolio, run_portfolio_performance, run_stock, run_what_if, run_min_variance, run_max_return
-from portfolio_risk_score import portfolio_risk_score
+from portfolio_risk_score import run_risk_score_analysis
 
 # 1. Full portfolio analysis
-run_portfolio()
+run_portfolio("portfolio.yaml")
 
 # 2. Portfolio performance analysis
 run_portfolio_performance("portfolio.yaml")
 
 # 3. Single stock analysis
-run_stock("AAPL")
+run_stock("AAPL", start="2020-01-01", end="2024-12-31")
 
 # 4. What-if scenario testing
-changes = {"AAPL": 0.05, "SGOV": 0.10}  # Reduce AAPL, add SGOV
-run_what_if(changes)
+run_what_if("portfolio.yaml", delta="AAPL:-500bp,SGOV:+500bp")
 
 # 5. Portfolio optimization
-run_min_variance()  # Minimum risk portfolio
-run_max_return()    # Maximum return portfolio
+run_min_variance("portfolio.yaml")  # Minimum risk portfolio
+run_max_return("portfolio.yaml")    # Maximum return portfolio
 
 # 6. Risk scoring
-score, breakdown, recommendations = portfolio_risk_score()
+results = run_risk_score_analysis("portfolio.yaml", "risk_limits.yaml")
 ```
 
 Each provides actionable insights to help you make better investment decisions.
 
-## 📁 Project Structure
+## 📁 Complete Project Structure
 
+### Core Analysis Engine
 ```
 risk_module/
-├── README.md                 # This file
-├── architecture.md          # Detailed architecture documentation
-├── settings.py              # Default configuration settings
-├── portfolio.yaml           # Portfolio configuration
-├── risk_limits.yaml         # Risk limit definitions
-├── data_loader.py           # Data fetching and caching
-├── factor_utils.py          # Factor analysis utilities
-├── portfolio_risk.py        # Portfolio risk calculations
-├── risk_summary.py          # Single-stock risk profiling
-├── run_portfolio_risk.py    # Portfolio analysis runner
-├── run_risk.py             # Risk analysis runner
-├── helpers_display.py       # Display utilities
-├── helpers_input.py         # Input processing utilities
-├── risk_helpers.py          # Risk calculation helpers
-├── portfolio_optimizer.py   # Portfolio optimization
-├── proxy_builder.py         # Factor proxy generation and GPT peer integration
-├── gpt_helpers.py           # GPT integration and peer generation
-├── plaid_loader.py          # Plaid financial data integration
-├── app.py                   # Flask web application
-├── cash_map.yaml            # Cash position mapping configuration
-├── industry_to_etf.yaml     # Industry to ETF mapping
-├── exchange_etf_proxies.yaml # Exchange-specific ETF proxies
-├── what_if_portfolio.yaml   # What-if scenario configuration
-├── run_risk_summary_to_gpt_dev.py # GPT interpretation runner
-└── cache_prices/           # Cached price data (gitignored)
+├── portfolio_risk.py           # Portfolio risk calculations and performance metrics
+├── portfolio_risk_score.py     # 0-100 risk scoring with detailed analysis
+├── factor_utils.py             # Multi-factor regression and volatility calculations
+├── risk_summary.py             # Single-stock risk profiling
+├── portfolio_optimizer.py      # Portfolio optimization algorithms
+└── risk_helpers.py             # Risk calculation utilities
+```
+
+### Data & Integration Layer
+```
+├── data_loader.py              # API integration with intelligent caching
+├── plaid_loader.py             # Plaid brokerage integration (29KB)
+├── proxy_builder.py            # Factor proxy generation and GPT peer integration
+└── gpt_helpers.py              # AI assistant integration
+```
+
+### Entry Points & Runners
+```
+├── run_risk.py                 # Main command-line interface and entry points
+├── run_portfolio_risk.py       # Portfolio analysis runner with display utilities
+└── run_risk_summary_to_gpt_dev.py # GPT interpretation runner
+```
+
+### Web Application
+```
+├── app.py                      # Flask web application (3,156 lines)
+│                               # • Google OAuth authentication
+│                               # • Plaid integration endpoints
+│                               # • Claude AI chat interface
+│                               # • RESTful API with rate limiting
+│                               # • Admin dashboard and monitoring
+└── frontend/                   # Frontend assets (if applicable)
+```
+
+### Configuration Files
+```
+├── portfolio.yaml              # Portfolio positions and factor proxies
+├── risk_limits.yaml            # Risk tolerance and limit settings
+├── settings.py                 # Default system configuration
+├── cash_map.yaml               # Cash position mapping to ETF proxies
+├── industry_to_etf.yaml        # Industry classification to ETF mapping
+├── exchange_etf_proxies.yaml   # Exchange-specific factor proxies
+└── what_if_portfolio.yaml      # What-if scenario configurations
+```
+
+### Utilities & Helpers
+```
+├── helpers_display.py          # Output formatting and display utilities
+├── helpers_input.py            # Input processing and validation utilities
+└── update_secrets.sh           # Secrets synchronization script
+```
+
+### Documentation & Project Files
+```
+├── README.md                   # Main project documentation (this file)
+├── architecture.md             # Detailed technical architecture (875 lines)
+├── docs/                       # Additional documentation
+│   ├── WEB_APP.md             # Web application API reference
+│   └── API_REFERENCE.md       # Detailed API documentation
+├── requirements.txt            # Python dependencies
+├── LICENSE                     # MIT License
+└── .env                       # Environment variables (API keys, secrets)
+```
+
+### Data & Cache Directories
+```
+├── cache_prices/              # Cached price data (gitignored)
+├── exports/                   # Analysis export files
+├── error_logs/                # System error logs
+└── templates/                 # Web application templates
 ```
 
 ## 🤝 Contributing
