@@ -1,28 +1,70 @@
+# =============================================================================
+# PORTFOLIO RISK MODULE - .gitignore
+# =============================================================================
+
+# =============================================================================
+# SECURITY & SECRETS
+# =============================================================================
 .env
-cache_prices/
+risk_module_secrets/
+update_secrets.sh
+
+# =============================================================================
+# PYTHON SPECIFIC
+# =============================================================================
 __pycache__/
-Archive/
-Docs/
-*.parquet
-.DS_Store 
+*.py[cod]
+*$py.class
 .ipynb_checkpoints/
 *.ipynb
-# Ignore backup files with date patterns
+
+# =============================================================================
+# DATA & CACHE
+# =============================================================================
+cache_prices/
+*.parquet
+error_logs/*.json
+
+# =============================================================================
+# CONFIGURATION FILES
+# =============================================================================
+*.yaml
+cookies.txt
+
+# =============================================================================
+# DEVELOPMENT & BACKUP FILES
+# =============================================================================
+# Backup files with date patterns
 *_dev_????-??-??.py
-# Ignore in-progress files
+
+# In-progress development files
 app.py
 templates/dashboard.html
-# Ignore usage log files
-error_logs/*.json
-# Ignore YAML configuration files
-*.yaml
-# Ignore plaid_loader files
+
+# Plaid integration development files
 *plaid_loader*
 plaid_loader.py
-# Ignore secrets directory
-risk_module_secrets/
-# Ignore secrets update script
-update_secrets.sh
-frontend/
-cookies.txt
+
+# =============================================================================
+# DOCUMENTATION & ARCHIVE
+# =============================================================================
+Archive/
+Docs/
 alignment_table.md
+
+# =============================================================================
+# SYSTEM FILES
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =============================================================================
+# FRONTEND
+# =============================================================================
+# Frontend source code is tracked - see frontend/.gitignore for build artifacts
+# Frontend dependencies and build files are handled by frontend/.gitignore
