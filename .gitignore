@@ -54,6 +54,7 @@ app.py
 templates/dashboard.html
 tools/
 backup/
+backup_system.sh
 
 # Plaid integration development files
 *plaid_loader*
