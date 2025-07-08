@@ -53,6 +53,7 @@ cookies.txt
 app.py
 templates/dashboard.html
 tools/
+backup/
 
 # Plaid integration development files
 *plaid_loader*
