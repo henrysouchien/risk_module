@@ -37,68 +37,197 @@ The system includes robust data quality validation to prevent unstable factor ca
 ### Interface Layer
 
 For web interface, REST API, and Claude AI chat integration, see:
-- **[Interface README](INTERFACE_README.md)** - User guide for REST API, Claude chat, and web interface
-- **[Interface Architecture](INTERFACE_ARCHITECTURE.md)** - Technical architecture of the interface layer
+- **[Interface README](docs/interfaces/INTERFACE_README.md)** - User guide for REST API, Claude chat, and web interface
+- **[Interface Architecture](docs/interfaces/INTERFACE_ARCHITECTURE.md)** - Technical architecture of the interface layer
 
 ## 🏗️ Architecture Layers
 
-The system follows a layered architecture pattern with clear separation of concerns:
+The system follows a sophisticated **5-layer enterprise architecture** with clear separation of concerns and comprehensive interface coverage:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Presentation Layer                        │
+│                    LAYER 5: FRONTEND                         │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │ run_portfolio_  │  │ run_single_     │  │ run_risk.py  │ │
-│  │ risk.py         │  │ stock_profile.py│  │ + performance│ │
-│  │ + performance   │  │                 │  │ runner       │ │
-│  │ display         │  │                 │  │              │ │
+│  │ frontend/src/   │  │ React SPA       │  │ Interface    │ │
+│  │ App.js          │  │ (1,477 lines)   │  │ Alignment    │ │
+│  │ (UI Components) │  │                 │  │ Tools        │ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│                    Business Logic Layer                      │
+│                    LAYER 4: WEB INTERFACE                    │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │ portfolio_risk. │  │ risk_summary.py │  │ factor_utils.│ │
-│  │ py              │  │                 │  │ py           │ │
+│  │ routes/api.py   │  │ routes/claude.py│  │ routes/      │ │
+│  │ (REST API)      │  │ (AI Chat)       │  │ plaid.py     │ │
+│  │                 │  │                 │  │ auth.py      │ │
+│  │                 │  │                 │  │ admin.py     │ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│                    Data Access Layer                         │
+│                    LAYER 3: AI SERVICES                      │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │ data_loader.py  │  │ helpers_input.  │  │ helpers_     │ │
-│  │                 │  │ py              │  │ display.py   │ │
+│  │ services/claude/│  │ services/       │  │ 14 Claude    │ │
+│  │ function_       │  │ portfolio/      │  │ Functions    │ │
+│  │ executor.py     │  │ context_service │  │ (618 lines)  │ │
+│  │ (AI Functions)  │  │ (Portfolio Cache│  │              │ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│                    Configuration Layer                       │
+│                    LAYER 2: DATA MANAGEMENT                  │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │ portfolio.yaml  │  │ risk_limits.    │  │ .env         │ │
-│  │                 │  │ yaml            │  │              │ │
+│  │ inputs/         │  │ inputs/         │  │ inputs/      │ │
+│  │ portfolio_      │  │ risk_config.py  │  │ returns_     │ │
+│  │ manager.py      │  │ (Risk Limits)   │  │ calculator.py│ │
+│  │ (Portfolio Ops) │  │                 │  │ inputs/      │ │
+│  │                 │  │                 │  │ file_manager │ │
+│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    LAYER 1: CORE RISK ENGINE                 │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
+│  │ portfolio_risk. │  │ portfolio_risk_ │  │ factor_utils.│ │
+│  │ py              │  │ score.py        │  │ py           │ │
+│  │ (Risk Analysis) │  │ (Risk Scoring)  │  │ (Factor Calc)│ │
+│  │                 │  │                 │  │              │ │
+│  │ portfolio_      │  │ risk_summary.py │  │ data_loader. │ │
+│  │ optimizer.py    │  │ (Stock Profile) │  │ py           │ │
+│  │ (Optimization)  │  │                 │  │ (Data Access)│ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Interface Coverage Analysis
+
+The system provides **4 distinct interfaces** with varying levels of functional coverage:
+
+| Interface | Coverage | Key Components | Status |
+|-----------|----------|----------------|--------|
+| **CLI** | 21% | `run_risk.py`, `portfolio_risk_score.py`, `proxy_builder.py` | ⚠️ Missing 9 functions |
+| **API** | 85% | `routes/api.py`, `routes/claude.py`, `routes/plaid.py` | ✅ Comprehensive |
+| **Claude** | 36% | `services/claude/function_executor.py` (14 functions) | ✅ AI-powered |
+| **Inputs** | 100% | `inputs/portfolio_manager.py`, `inputs/risk_config.py` | ✅ Foundation layer |
+
+**Priority Gap**: Adding 9 missing CLI functions would increase overall alignment from 21% to 44%.
 
 ## 📂 File Structure
 
+### Complete Enterprise Directory Structure
+
 ```
 risk_module/
-├── 📄 README.md                    # Project documentation
-├── 📄 architecture.md              # This file
+├── 📄 Readme.md                    # Main project documentation
+├── 📄 architecture.md              # Technical architecture (this file)
 ├── ⚙️ settings.py                  # Default configuration settings
-├── ⚙️ portfolio.yaml              # Portfolio configuration
-├── ⚙️ risk_limits.yaml            # Risk limit definitions
-├── 🔌 data_loader.py              # Data fetching and caching
-├── 📊 factor_utils.py             # Factor analysis utilities
-├── 💼 portfolio_risk.py           # Portfolio risk calculations
-├── 📈 risk_summary.py             # Single-stock risk profiling
-├── 🚀 run_portfolio_risk.py       # Portfolio analysis runner + performance display
-├── 🎯 run_risk.py                 # Risk analysis runner + performance runner
-├── 🛠️ helpers_display.py          # Display utilities
-├── 🛠️ helpers_input.py            # Input processing utilities
-├── 🛠️ risk_helpers.py             # Risk calculation helpers
-├── ⚡ portfolio_optimizer.py       # Portfolio optimization
-├── 🤖 gpt_helpers.py              # GPT integration and peer generation
-└── 📁 cache_prices/               # Cached price data (gitignored)
+├── 🔧 app.py                       # Flask web application (13KB)
+├── 🔒 update_secrets.sh            # Secrets synchronization script
+├── 📋 requirements.txt             # Python dependencies
+├── 📜 LICENSE                      # MIT License
+│
+├── 📊 Core Risk Engine (Layer 1)
+│   ├── 💼 portfolio_risk.py           # Portfolio risk calculations (32KB)
+│   ├── 📈 portfolio_risk_score.py     # Risk scoring system (53KB)
+│   ├── 📊 factor_utils.py             # Factor analysis utilities (8KB)
+│   ├── 📋 risk_summary.py             # Single-stock risk profiling (4KB)
+│   ├── ⚡ portfolio_optimizer.py       # Portfolio optimization (36KB)
+│   ├── 🔌 data_loader.py              # Data fetching and caching (8KB)
+│   ├── 🤖 gpt_helpers.py              # GPT integration (4KB)
+│   ├── 🔧 proxy_builder.py            # Factor proxy generation (19KB)
+│   ├── 🏦 plaid_loader.py             # Plaid brokerage integration (29KB)
+│   └── 🛠️ risk_helpers.py             # Risk calculation helpers (8KB)
+│
+├── 📁 inputs/ (Layer 2: Data Management)
+│   ├── portfolio_manager.py           # Portfolio operations
+│   ├── risk_config.py                 # Risk limits management
+│   ├── returns_calculator.py          # Returns estimation
+│   └── file_manager.py                # File operations
+│
+├── 📁 services/ (Layer 3: AI Services)
+│   ├── claude/
+│   │   ├── function_executor.py       # 14 Claude functions (618 lines)
+│   │   ├── chat_service.py            # Claude conversation orchestration
+│   │   └── claude_utils.py            # Claude utilities
+│   └── portfolio/
+│       ├── context_service.py         # Portfolio caching (374 lines)
+│       └── portfolio_utils.py         # Portfolio utilities
+│
+├── 📁 routes/ (Layer 4: Web Interface)
+│   ├── api.py                         # Core API endpoints
+│   ├── claude.py                      # Claude chat endpoint
+│   ├── plaid.py                       # Plaid integration endpoints
+│   ├── auth.py                        # Authentication endpoints
+│   └── admin.py                       # Admin endpoints
+│
+├── 📁 frontend/ (Layer 5: Frontend)
+│   ├── src/
+│   │   ├── App.js                     # React SPA (1,477 lines)
+│   │   ├── components/                # React components
+│   │   └── utils/                     # Frontend utilities
+│   └── public/                        # Static assets
+│
+├── 📁 docs/ (Documentation)
+│   ├── interfaces/
+│   │   ├── alignment_table.md         # Interface alignment mapping
+│   │   ├── INTERFACE_README.md        # Interface documentation
+│   │   └── INTERFACE_ARCHITECTURE.md  # Interface architecture
+│   ├── planning/
+│   │   ├── COMPLETE_IMPLEMENTATION_PLAN.md
+│   │   ├── MIGRATION_CHECKLIST.md
+│   │   ├── REFACTORING_PLAN.md
+│   │   ├── DATA_OBJECTS_DESIGN.md
+│   │   └── ARCHITECTURE_DECISIONS.md
+│   ├── API_REFERENCE.md               # API documentation
+│   ├── WEB_APP.md                     # Web application guide
+│   └── README.md                      # Documentation index
+│
+├── 📁 tools/ (Utilities)
+│   ├── view_alignment.py              # Terminal alignment viewer
+│   ├── check_dependencies.py          # Dependency impact analysis
+│   └── test_all_interfaces.py         # Interface testing suite
+│
+├── 📁 utils/ (Utilities)
+│   ├── helpers_display.py             # Display utilities (5KB)
+│   ├── helpers_input.py               # Input processing utilities (2KB)
+│   └── various utility modules...
+│
+├── 📁 templates/ (Web Templates)
+│   └── flask templates for web UI
+│
+├── 📁 Configuration Files
+│   ├── ⚙️ portfolio.yaml              # Portfolio configuration
+│   ├── ⚙️ risk_limits.yaml            # Risk limit definitions
+│   ├── 🗺️ cash_map.yaml               # Cash position mapping
+│   ├── 🏭 industry_to_etf.yaml        # Industry classification mapping
+│   ├── 📊 exchange_etf_proxies.yaml   # Exchange-specific proxies
+│   ├── 🔧 what_if_portfolio.yaml      # What-if scenarios
+│   └── 🔑 .env                        # Environment variables
+│
+├── 📁 Entry Points & Runners
+│   ├── 🎯 run_risk.py                 # Main CLI interface (20KB)
+│   ├── 🚀 run_portfolio_risk.py       # Portfolio analysis runner (24KB)
+│   └── 🤖 run_risk_summary_to_gpt_dev.py # GPT interpretation runner
+│
+├── 📁 Data & Cache Directories
+│   ├── 📁 cache_prices/               # Cached price data (gitignored)
+│   ├── 📁 exports/                    # Analysis export files
+│   ├── 📁 error_logs/                 # System error logs
+│   └── 📁 Archive/                    # Historical files
+│
+└── 📁 Development & Testing
+    ├── Various .ipynb files           # Jupyter notebooks for development
+    ├── test_*.py files                # Testing scripts
+    └── *_dev.py files                 # Development versions
 ```
+
+### Key Directory Purposes
+
+| Directory | Purpose | Layer | Key Files |
+|-----------|---------|-------|-----------|
+| **inputs/** | Data management operations | 2 | `portfolio_manager.py`, `risk_config.py` |
+| **services/** | AI services and orchestration | 3 | `function_executor.py`, `context_service.py` |
+| **routes/** | Web API endpoints | 4 | `api.py`, `claude.py`, `plaid.py` |
+| **frontend/** | React user interface | 5 | `App.js`, components |
+| **docs/** | Comprehensive documentation | - | Interface docs, planning docs |
+| **tools/** | Development utilities | - | Alignment tools, testing scripts |
+| **utils/** | Helper functions | - | Display, input processing |
 
 ## 🔄 Data Flow
 
@@ -317,7 +446,173 @@ The system now uses professional-grade risk-free rates from the FMP Treasury API
 - Maintains data consistency across factors
 - Automatic quality control for GPT-generated peers
 
-### 5. Execution Layer
+### 5. AI Services Layer (`services/`)
+
+**Purpose**: AI-powered portfolio analysis and conversational interface
+
+#### Claude Function Executor (`services/claude/function_executor.py`)
+**618 lines of sophisticated AI function integration**
+
+**Core Analysis Functions (5)**:
+- `run_portfolio_analysis()`: Complete portfolio risk analysis with GPT interpretation
+- `analyze_stock()`: Single stock analysis with factor decomposition
+- `get_risk_score()`: Portfolio risk scoring with detailed breakdown
+- `calculate_portfolio_performance()`: Performance metrics and benchmarking
+- `run_what_if_scenario()`: Portfolio scenario testing
+
+**Scenario & Optimization Functions (4)**:
+- `run_what_if_scenario()`: Portfolio modification testing
+- `create_portfolio_scenario()`: New portfolio creation from user input
+- `optimize_portfolio_min_variance()`: Minimum risk optimization
+- `optimize_portfolio_max_return()`: Maximum return optimization
+
+**Portfolio Management Functions (6)**:
+- `create_portfolio_scenario()`: Portfolio creation with validation
+- `inject_all_proxies()`: Factor proxy setup and peer generation
+- `save_portfolio_yaml()`: Portfolio configuration persistence
+- `load_portfolio_yaml()`: Portfolio configuration loading
+- `update_portfolio_weights()`: Weight modification
+- `validate_portfolio_config()`: Configuration validation
+
+**Returns Management Functions (3)**:
+- `estimate_expected_returns()`: Historical returns estimation
+- `set_expected_returns()`: Manual returns configuration
+- `update_portfolio_expected_returns()`: Returns persistence
+
+**Risk Management Functions (5)**:
+- `view_current_risk_limits()`: Risk limits inspection
+- `update_risk_limits()`: Risk tolerance modification
+- `reset_risk_limits()`: Risk limits reset to defaults
+- `validate_risk_limits()`: Risk configuration validation
+- `get_risk_score()`: Comprehensive risk assessment
+
+**File Management Functions (4)**:
+- `list_portfolios()`: Portfolio file listing
+- `backup_portfolio()`: Portfolio backup creation
+- `restore_portfolio()`: Portfolio restoration
+- `delete_portfolio()`: Portfolio file deletion
+
+**Features**:
+- Natural language interface for all risk analysis functions
+- Automatic parameter validation and error handling
+- GPT-powered interpretation of results
+- Seamless integration with core risk engine
+- Context-aware responses based on portfolio state
+
+#### Portfolio Context Service (`services/portfolio/context_service.py`)
+**374 lines of portfolio caching and context management**
+
+**Key Functions**:
+- `cache_portfolio_context()`: Portfolio state caching
+- `get_portfolio_context()`: Context retrieval for conversations
+- `update_portfolio_context()`: Context updates after modifications
+- `clear_portfolio_context()`: Context cleanup
+
+**Features**:
+- Redis-based portfolio state caching
+- Context persistence across conversations
+- Automatic context updates after portfolio modifications
+- Performance optimization for repeated analysis
+
+### 6. Data Management Layer (`inputs/`)
+
+**Purpose**: Specialized modules for data operations and configuration management (Layer 2)
+
+The inputs layer provides a clean abstraction for all data management operations, serving as the foundation for the entire system.
+
+#### Portfolio Manager (`inputs/portfolio_manager.py`)
+**Portfolio configuration and operations**
+
+**Key Functions**:
+- `create_portfolio_yaml()`: Create new portfolio configurations
+- `load_yaml_config()`: Load and validate portfolio configurations
+- `save_yaml_config()`: Persist portfolio configurations
+- `update_portfolio_weights()`: Modify portfolio positions
+- `create_what_if_yaml()`: Generate scenario configurations
+- `validate_portfolio_config()`: Portfolio validation and error checking
+
+**Features**:
+- YAML configuration management
+- Portfolio weight normalization
+- Data validation and error handling
+- Scenario generation for what-if analysis
+- Backup and versioning support
+
+#### Risk Configuration Manager (`inputs/risk_config.py`)
+**Risk limits and tolerance management**
+
+**Key Functions**:
+- `view_current_risk_limits()`: Display current risk tolerance settings
+- `update_risk_limits()`: Modify risk tolerance parameters
+- `reset_risk_limits()`: Reset to default risk settings
+- `validate_risk_limits()`: Risk configuration validation
+- `calculate_risk_metrics()`: Risk calculation utilities
+
+**Features**:
+- Risk limit validation and enforcement
+- Default risk tolerance management
+- Risk metric calculation support
+- Configuration backup and recovery
+- Integration with risk scoring system
+
+#### Returns Calculator (`inputs/returns_calculator.py`)
+**Expected returns estimation and management**
+
+**Key Functions**:
+- `estimate_historical_returns()`: Calculate historical expected returns
+- `update_portfolio_expected_returns()`: Update portfolio return expectations
+- `set_expected_returns()`: Manual return specification
+- `validate_return_assumptions()`: Return validation and reasonableness checks
+- `calculate_risk_adjusted_returns()`: Risk-adjusted return calculations
+
+**Features**:
+- Historical return analysis
+- Return assumption validation
+- Risk-adjusted return calculations
+- Integration with portfolio optimization
+- Return forecasting utilities
+
+#### File Manager (`inputs/file_manager.py`)
+**File operations and data persistence**
+
+**Key Functions**:
+- `load_yaml_config()`: Universal YAML configuration loader
+- `save_yaml_config()`: Universal YAML configuration saver
+- `backup_portfolio()`: Portfolio backup creation
+- `restore_portfolio()`: Portfolio restoration from backup
+- `list_portfolios()`: Portfolio file discovery
+- `delete_portfolio()`: Safe portfolio deletion
+
+**Features**:
+- Universal configuration file handling
+- Backup and recovery operations
+- File validation and error handling
+- Directory management and organization
+- Integration with all system components
+
+#### Layer 2 Architecture Benefits
+
+**1. Data Abstraction**:
+- Clean separation between data operations and business logic
+- Consistent data access patterns across all interfaces
+- Centralized data validation and error handling
+
+**2. Configuration Management**:
+- Unified approach to YAML configuration handling
+- Validation and error checking for all data inputs
+- Backup and recovery capabilities
+
+**3. Interface Foundation**:
+- Provides consistent data operations for all 4 interfaces
+- Ensures data integrity across CLI, API, Claude, and Frontend
+- Enables rapid interface development through reusable components
+
+**4. System Integration**:
+- Seamless integration with Core Risk Engine (Layer 1)
+- Supports AI Services (Layer 3) with clean data access
+- Enables Web Interface (Layer 4) and Frontend (Layer 5)
+
+### 7. Execution Layer
 
 **Portfolio Runner** (`run_portfolio_risk.py`):
 - End-to-end portfolio analysis
@@ -588,6 +883,366 @@ limits = {
 - Rate limiting by user tier
 - Error logging and monitoring
 - Secure token storage
+
+### Route Documentation (`routes/`)
+
+The web interface is organized into 5 specialized route modules for clean separation of concerns:
+
+#### Core API Routes (`routes/api.py`)
+**Primary risk analysis endpoints**
+
+| Endpoint | Method | Purpose | Parameters |
+|----------|--------|---------|------------|
+| `/api/analyze` | POST | Portfolio risk analysis | `yaml_content`, `portfolio_name` |
+| `/api/risk-score` | POST | Risk scoring analysis | `yaml_content`, `risk_limits` |
+| `/api/performance` | POST | Performance metrics | `yaml_content`, `benchmark` |
+| `/api/what-if` | POST | Scenario analysis | `yaml_content`, `scenario` |
+| `/api/optimize` | POST | Portfolio optimization | `yaml_content`, `objective` |
+
+**Features**:
+- Rate limiting by user tier
+- Input validation and sanitization
+- Comprehensive error handling
+- JSON response formatting
+- Export functionality for analysis results
+
+#### Claude AI Chat Routes (`routes/claude.py`)
+**AI-powered conversational analysis**
+
+| Endpoint | Method | Purpose | Parameters |
+|----------|--------|---------|------------|
+| `/api/claude_chat` | POST | Interactive AI analysis | `message`, `conversation_history` |
+| `/api/claude_functions` | GET | List available functions | - |
+| `/api/claude_context` | GET | Get conversation context | `session_id` |
+
+**Features**:
+- Integration with 14 Claude functions
+- Context-aware conversations
+- Function calling and parameter validation
+- Natural language result interpretation
+- Session management and persistence
+
+#### Plaid Integration Routes (`routes/plaid.py`)
+**Brokerage account integration**
+
+| Endpoint | Method | Purpose | Parameters |
+|----------|--------|---------|------------|
+| `/plaid/link` | POST | Create Plaid link token | `user_id` |
+| `/plaid/exchange` | POST | Exchange public token | `public_token`, `user_id` |
+| `/plaid/accounts` | GET | List connected accounts | `user_id` |
+| `/plaid/holdings` | GET | Get account holdings | `user_id`, `account_id` |
+| `/plaid/import` | POST | Import portfolio data | `user_id`, `account_id` |
+
+**Features**:
+- Multi-institution support
+- Real-time holdings import
+- Cash position mapping
+- Portfolio YAML generation
+- AWS Secrets Manager integration
+
+#### Authentication Routes (`routes/auth.py`)
+**User management and security**
+
+| Endpoint | Method | Purpose | Parameters |
+|----------|--------|---------|------------|
+| `/auth/login` | POST | User login | `email`, `password` |
+| `/auth/logout` | POST | User logout | - |
+| `/auth/register` | POST | User registration | `email`, `password`, `tier` |
+| `/auth/profile` | GET | Get user profile | - |
+| `/auth/api-key` | POST | Generate API key | `user_id` |
+
+**Features**:
+- Google OAuth integration
+- Multi-tier user management (public/registered/paid)
+- Secure session handling
+- API key generation and validation
+- Rate limiting enforcement
+
+#### Admin Routes (`routes/admin.py`)
+**System administration and monitoring**
+
+| Endpoint | Method | Purpose | Parameters |
+|----------|--------|---------|------------|
+| `/admin/usage` | GET | Usage statistics | `date_range` |
+| `/admin/cache` | DELETE | Clear system cache | `cache_type` |
+| `/admin/users` | GET | User management | `filters` |
+| `/admin/logs` | GET | System logs | `level`, `date_range` |
+| `/admin/health` | GET | System health check | - |
+
+**Features**:
+- Usage tracking and analytics
+- Cache management
+- User administration
+- System monitoring
+- Error log analysis
+
+### API Response Format
+
+All API endpoints follow a consistent response format:
+
+```json
+{
+  "status": "success|error",
+  "data": {
+    // Response data
+  },
+  "message": "Human-readable message",
+  "timestamp": "ISO timestamp",
+  "request_id": "unique-request-id"
+}
+```
+
+### Error Handling
+
+- **Rate Limiting**: HTTP 429 with retry-after header
+- **Authentication**: HTTP 401 for invalid credentials
+- **Authorization**: HTTP 403 for insufficient permissions
+- **Validation**: HTTP 400 with detailed error messages
+- **Server Error**: HTTP 500 with error tracking ID
+
+### Frontend Architecture (`frontend/`)
+
+The frontend is a modern React Single Page Application (SPA) that provides an intuitive interface for portfolio risk analysis.
+
+#### React Application (`frontend/src/App.js`)
+**1,477 lines of sophisticated React components**
+
+**Core Features**:
+- **Portfolio Management**: Upload, edit, and manage portfolio configurations
+- **Risk Analysis Dashboard**: Interactive risk metrics and visualizations
+- **Claude AI Chat**: Conversational interface for portfolio analysis
+- **Plaid Integration**: Connect and import brokerage accounts
+- **Performance Tracking**: Historical performance analysis and benchmarking
+- **Risk Scoring**: Visual risk score breakdown and recommendations
+- **What-If Analysis**: Interactive scenario testing
+
+**Component Structure**:
+```
+frontend/src/
+├── App.js                     # Main application (1,477 lines)
+├── components/
+│   ├── Dashboard/             # Risk analysis dashboard
+│   ├── Portfolio/             # Portfolio management
+│   ├── Chat/                  # Claude AI chat interface
+│   ├── Plaid/                 # Brokerage integration
+│   ├── Analysis/              # Risk analysis components
+│   ├── Performance/           # Performance tracking
+│   └── Common/                # Shared components
+├── services/
+│   ├── api.js                 # API service layer
+│   ├── claude.js              # Claude chat service
+│   └── plaid.js               # Plaid integration service
+├── utils/
+│   ├── helpers.js             # Utility functions
+│   ├── validation.js          # Input validation
+│   └── formatting.js          # Data formatting
+└── styles/
+    ├── components/            # Component-specific styles
+    └── global/                # Global styles
+```
+
+**Key Components**:
+
+1. **Portfolio Dashboard**:
+   - Real-time risk metrics display
+   - Interactive charts and visualizations
+   - Portfolio composition breakdown
+   - Risk limit monitoring
+
+2. **Claude Chat Interface**:
+   - Natural language query processing
+   - Context-aware conversations
+   - Function calling integration
+   - Result visualization
+
+3. **Plaid Integration**:
+   - Account linking workflow
+   - Holdings import interface
+   - Multi-institution support
+   - Cash position mapping
+
+4. **Risk Analysis Tools**:
+   - Factor exposure analysis
+   - Risk decomposition charts
+   - Concentration analysis
+   - Historical performance tracking
+
+5. **What-If Scenarios**:
+   - Interactive portfolio modification
+   - Scenario comparison
+   - Risk impact analysis
+   - Optimization suggestions
+
+**State Management**:
+- React hooks for local state
+- Context API for global state
+- Redux for complex state management
+- Local storage for persistence
+
+**API Integration**:
+- Axios for HTTP requests
+- Error handling and retry logic
+- Rate limiting compliance
+- Real-time updates
+
+**User Experience Features**:
+- Responsive design for mobile/desktop
+- Loading states and progress indicators
+- Error boundaries for graceful failures
+- Accessibility compliance
+- Dark/light mode support
+
+#### Frontend Build Process
+
+**Development Setup**:
+```bash
+cd frontend/
+npm install
+npm start                    # Development server
+npm run build               # Production build
+npm test                    # Run tests
+```
+
+**Production Build**:
+- Webpack bundling and optimization
+- CSS/JS minification
+- Asset optimization
+- Environment variable injection
+
+**Deployment**:
+- Served through Flask static files
+- CDN integration for assets
+- Service worker for offline support
+- Progressive Web App (PWA) capabilities
+
+### Frontend-Backend Integration
+
+**Data Flow**:
+```
+User Input → React Component → API Service → Flask Route → Core Engine → Database
+     ↓
+React State ← Component Update ← API Response ← Flask Response ← Analysis Results
+```
+
+**Real-time Features**:
+- WebSocket connections for live updates
+- Server-sent events for analysis progress
+- Polling for portfolio updates
+- Push notifications for risk alerts
+
+**Security**:
+- JWT token authentication
+- CSRF protection
+- Input sanitization
+- XSS prevention
+- Content Security Policy
+
+### Interface Alignment System (`tools/`)
+
+The system includes sophisticated tools for managing the complexity of the 4-interface architecture and ensuring consistency across all user touchpoints.
+
+#### Interface Alignment Analysis
+
+**Problem**: The risk module provides the same functionality through 4 different interfaces (CLI, API, Claude, Inputs), but maintaining consistency across all interfaces is challenging.
+
+**Solution**: A comprehensive alignment tracking system that maps all functions across interfaces and identifies gaps.
+
+#### Alignment Tools
+
+**1. Interface Alignment Table (`docs/interfaces/alignment_table.md`)**
+- **Purpose**: Complete mapping of 39 functions across 4 interfaces
+- **Categories**: 9 functional categories (Core Analysis, Portfolio Management, etc.)
+- **Status Tracking**: Alignment percentages and gap identification
+- **Priority Analysis**: Identifies which missing functions would provide maximum impact
+
+**Current Status**:
+- **Overall Alignment**: 21% (8/39 functions fully aligned)
+- **Biggest Gap**: Missing 9 CLI functions (would increase alignment to 44%)
+- **Best Coverage**: Inputs layer (100%), API layer (85%)
+- **Development Priority**: Add CLI wrappers for existing functions
+
+**2. Terminal Alignment Viewer (`tools/view_alignment.py`)**
+- **Purpose**: Quick terminal-friendly view of alignment status
+- **Features**: Clean formatting, file location reference, priority recommendations
+- **Usage**: `python tools/view_alignment.py`
+
+**Output Example**:
+```
+🔍 CORE ANALYSIS FUNCTIONS
+📋 Portfolio Analysis
+  CLI:    ✅ run_portfolio()
+  API:    ✅ /api/analyze + /api/claude_chat
+  Claude: ✅ run_portfolio_analysis()
+  Inputs: ✅ load_yaml_config()
+  Status: ✅ FULLY ALIGNED
+```
+
+**3. Dependency Checker (`tools/check_dependencies.py`)**
+- **Purpose**: Impact analysis for function modifications
+- **Features**: Dependency mapping, testing chains, impact assessment
+- **Usage**: `python tools/check_dependencies.py create_portfolio_yaml`
+
+**Output Example**:
+```
+🔍 DEPENDENCY CHECK: create_portfolio_yaml
+📁 Source File: inputs/portfolio_manager.py
+🔗 Used By:
+  • Claude: create_portfolio_scenario() → services/claude/function_executor.py
+  • API: /api/claude_chat → routes/claude.py
+  • CLI: ❌ Missing run_create_portfolio_scenario()
+🧪 Testing Chain:
+  1. Test inputs/portfolio_manager.py → create_portfolio_yaml()
+  2. Test services/claude/function_executor.py → create_portfolio_scenario()
+  3. Test /api/claude_chat endpoint → routes/claude.py
+  4. Test frontend Claude chat integration
+```
+
+**4. Interface Testing Suite (`tools/test_all_interfaces.py`)**
+- **Purpose**: Comprehensive testing across all interfaces
+- **Features**: End-to-end testing, interface consistency validation
+- **Coverage**: All 39 functions across 4 interfaces
+
+#### Interface Architecture Benefits
+
+**1. Consistency Tracking**:
+- Ensures all interfaces provide equivalent functionality
+- Prevents feature drift between interfaces
+- Maintains user experience consistency
+
+**2. Gap Analysis**:
+- Identifies missing functions that would improve user experience
+- Prioritizes development based on impact
+- Tracks alignment progress over time
+
+**3. Development Planning**:
+- Guides feature development priorities
+- Ensures comprehensive interface coverage
+- Supports systematic interface expansion
+
+**4. Quality Assurance**:
+- Validates function behavior across interfaces
+- Ensures consistent parameter handling
+- Maintains interface compatibility
+
+#### Interface Alignment Metrics
+
+**Function Categories & Alignment**:
+- **Core Analysis**: 60% aligned (3/5 functions) - Good coverage
+- **Scenario & Optimization**: 75% aligned (3/4 functions) - Excellent coverage
+- **Portfolio Management**: 17% aligned (1/6 functions) - Needs improvement
+- **Returns Management**: 0% aligned (0/3 functions) - Missing CLI functions
+- **Risk Limits**: 0% aligned (0/5 functions) - Missing CLI functions
+- **Plaid Integration**: 0% aligned (0/5 functions) - Missing CLI functions
+- **File Management**: 0% aligned (0/4 functions) - Missing CLI functions
+- **Auth & Admin**: 0% aligned (0/4 functions) - Missing CLI functions
+- **AI Orchestration**: 0% aligned (0/3 functions) - Missing CLI functions
+
+**Development Impact**:
+Adding the 9 missing CLI functions would:
+- Increase overall alignment from 21% to 44%
+- Provide complete CLI workflow coverage
+- Enable consistent behavior across all interfaces
+- Support power users who prefer command-line operations
 
 ## 🔗 External Integrations
 

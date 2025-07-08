@@ -52,6 +52,7 @@ cookies.txt
 # In-progress development files
 app.py
 templates/dashboard.html
+tools/
 
 # Plaid integration development files
 *plaid_loader*
@@ -60,8 +61,8 @@ plaid_loader.py
 # =============================================================================
 # DOCUMENTATION & ARCHIVE
 # =============================================================================
-Archive/
-Docs/
+archive/
+docs/
 alignment_table.md
 
 # =============================================================================

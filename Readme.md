@@ -19,8 +19,8 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 ## 🌐 Interface Layer
 
 For web interface, REST API, and Claude AI chat integration, see:
-- **[Interface README](INTERFACE_README.md)** - User guide for REST API, Claude chat, and web interface
-- **[Interface Architecture](INTERFACE_ARCHITECTURE.md)** - Technical architecture of the interface layer
+- **[Interface README](docs/interfaces/INTERFACE_README.md)** - User guide for REST API, Claude chat, and web interface
+- **[Interface Architecture](docs/interfaces/INTERFACE_ARCHITECTURE.md)** - Technical architecture of the interface layer
 
 ## 🤖 AI Assistant Guidelines
 
@@ -895,13 +895,60 @@ risk_module/
 └── update_secrets.sh           # Secrets synchronization script
 ```
 
-### Documentation & Project Files
+### 5-Layer Enterprise Architecture
+```
+├── 📊 Core Risk Engine (Layer 1)
+│   ├── portfolio_risk.py              # Portfolio risk calculations (32KB)
+│   ├── portfolio_risk_score.py        # Risk scoring system (53KB)
+│   ├── factor_utils.py                # Factor analysis utilities (8KB)
+│   ├── risk_summary.py                # Single-stock risk profiling (4KB)
+│   ├── portfolio_optimizer.py         # Portfolio optimization (36KB)
+│   ├── data_loader.py                 # Data fetching and caching (8KB)
+│   ├── proxy_builder.py               # Factor proxy generation (19KB)
+│   ├── plaid_loader.py                # Plaid brokerage integration (29KB)
+│   ├── gpt_helpers.py                 # GPT integration (4KB)
+│   └── risk_helpers.py                # Risk calculation helpers (8KB)
+│
+├── 📁 inputs/ (Layer 2: Data Management)
+│   ├── portfolio_manager.py           # Portfolio operations
+│   ├── risk_config.py                 # Risk limits management
+│   ├── returns_calculator.py          # Returns estimation
+│   └── file_manager.py                # File operations
+│
+├── 📁 services/ (Layer 3: AI Services)
+│   ├── claude/
+│   │   ├── function_executor.py       # 14 Claude functions (618 lines)
+│   │   └── chat_service.py            # Claude conversation orchestration
+│   └── portfolio/
+│       └── context_service.py         # Portfolio caching (374 lines)
+│
+├── 📁 routes/ (Layer 4: Web Interface)
+│   ├── api.py                         # Core API endpoints
+│   ├── claude.py                      # Claude chat endpoint
+│   ├── plaid.py                       # Plaid integration endpoints
+│   ├── auth.py                        # Authentication endpoints
+│   └── admin.py                       # Admin endpoints
+│
+├── 📁 frontend/ (Layer 5: Frontend)
+│   ├── src/
+│   │   ├── App.js                     # React SPA (1,477 lines)
+│   │   └── components/                # React components
+│   └── public/                        # Static assets
+```
+
+### Documentation & Development Tools
 ```
 ├── README.md                   # Main project documentation (this file)
-├── architecture.md             # Detailed technical architecture (875 lines)
-├── docs/                       # Additional documentation
+├── architecture.md             # Detailed technical architecture (1,000+ lines)
+├── docs/                       # Comprehensive documentation
+│   ├── interfaces/             # Interface alignment documentation
+│   ├── planning/               # Architecture and planning docs
 │   ├── WEB_APP.md             # Web application API reference
 │   └── API_REFERENCE.md       # Detailed API documentation
+├── tools/                      # Development utilities
+│   ├── view_alignment.py       # Interface alignment viewer
+│   ├── check_dependencies.py   # Dependency impact analysis
+│   └── test_all_interfaces.py  # Interface testing suite
 ├── requirements.txt            # Python dependencies
 ├── LICENSE                     # MIT License
 └── .env                       # Environment variables (API keys, secrets)
@@ -912,7 +959,8 @@ risk_module/
 ├── cache_prices/              # Cached price data (gitignored)
 ├── exports/                   # Analysis export files
 ├── error_logs/                # System error logs
-└── templates/                 # Web application templates
+├── templates/                 # Web application templates
+└── Archive/                   # Historical files and backups
 ```
 
 ## 🤝 Contributing
