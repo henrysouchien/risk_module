@@ -61,7 +61,7 @@ AI_FUNCTIONS = {
         
         # Function executor information
         "executor": "_execute_create_scenario",
-        "underlying_function": ["create_portfolio_yaml", "create_risk_limits_yaml", "inject_all_proxies"],
+        "underlying_function": ["create_portfolio_yaml", "create_risk_limits_yaml", "inject_all_proxies", "run_portfolio"],
         
         # Expected output format
         "output_schema": {
@@ -106,7 +106,7 @@ AI_FUNCTIONS = {
             "required": []
         },
         "executor": "_execute_portfolio_analysis",
-        "underlying_function": "run_portfolio_analysis"
+        "underlying_function": "run_portfolio"
     },
     
     "analyze_stock": {
@@ -131,7 +131,7 @@ AI_FUNCTIONS = {
             "required": ["ticker"]
         },
         "executor": "_execute_stock_analysis",
-        "underlying_function": "analyze_stock"
+        "underlying_function": "run_stock"
     },
     
     "run_what_if_scenario": {
@@ -153,7 +153,7 @@ AI_FUNCTIONS = {
             "required": ["target_weights"]
         },
         "executor": "_execute_what_if_scenario",
-        "underlying_function": "run_what_if_scenario"
+        "underlying_function": ["create_what_if_yaml", "run_what_if"]
     },
     
     "optimize_minimum_variance": {
@@ -170,7 +170,7 @@ AI_FUNCTIONS = {
             "required": []
         },
         "executor": "_execute_min_variance",
-        "underlying_function": "optimize_minimum_variance"
+        "underlying_function": "run_min_variance"
     },
     
     "optimize_maximum_return": {
@@ -187,7 +187,7 @@ AI_FUNCTIONS = {
             "required": []
         },
         "executor": "_execute_max_return",
-        "underlying_function": "optimize_maximum_return"
+        "underlying_function": "run_max_return"
     },
     
     "get_risk_score": {
@@ -204,7 +204,7 @@ AI_FUNCTIONS = {
             "required": []
         },
         "executor": "_execute_risk_score",
-        "underlying_function": "get_risk_score"
+        "underlying_function": "run_risk_score_analysis"
     },
     
     "setup_new_portfolio": {
@@ -221,7 +221,7 @@ AI_FUNCTIONS = {
             "required": []
         },
         "executor": "_execute_setup_portfolio",
-        "underlying_function": "setup_new_portfolio"
+        "underlying_function": "inject_all_proxies"
     },
     
     "estimate_expected_returns": {
@@ -248,7 +248,7 @@ AI_FUNCTIONS = {
             "required": []
         },
         "executor": "_execute_estimate_returns",
-        "underlying_function": "estimate_expected_returns"
+        "underlying_function": "estimate_historical_returns"
     },
     
     "set_expected_returns": {
@@ -270,7 +270,7 @@ AI_FUNCTIONS = {
             "required": ["expected_returns"]
         },
         "executor": "_execute_set_returns",
-        "underlying_function": "set_expected_returns"
+        "underlying_function": "update_portfolio_expected_returns"
     },
     
     "view_current_risk_limits": {
@@ -295,6 +295,10 @@ AI_FUNCTIONS = {
                     "type": "object",
                     "description": "Dictionary of risk limits to update. Available keys: 'max_volatility' (annualized portfolio volatility, e.g., 0.4 for 40%), 'max_loss' (portfolio loss tolerance, e.g., -0.25 for 25%), 'max_single_stock_weight' (maximum position size, e.g., 0.4 for 40%), 'max_factor_contribution' (factor variance contribution, e.g., 0.3 for 30%), 'max_market_contribution' (market factor variance contribution, e.g., 0.5 for 50%), 'max_industry_contribution' (industry factor variance contribution, e.g., 0.3 for 30%), 'max_single_factor_loss' (single factor loss limit, e.g., -0.1 for 10%). Only include limits you want to change.",
                     "additionalProperties": {"type": "number"}
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Reason for updating risk limits (e.g., 'Changed risk tolerance', 'Market conditions', 'Portfolio rebalancing'). Optional."
                 }
             },
             "required": ["risk_limits"]
@@ -345,7 +349,7 @@ AI_FUNCTIONS = {
             "required": []
         },
         "executor": "_execute_portfolio_performance",
-        "underlying_function": "calculate_portfolio_performance"
+        "underlying_function": ["calculate_portfolio_performance_metrics", "load_portfolio_config", "standardize_portfolio_input", "display_portfolio_performance_metrics"]
     }
 }
 
