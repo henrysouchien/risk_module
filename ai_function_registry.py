@@ -1,18 +1,37 @@
 """
 AI Function Registry - Centralized source of truth for all Claude function definitions.
 
-This registry contains complete metadata for all AI functions including:
-- Input/output schemas
-- Parameter validation
-- Examples for Claude and error messages
-- Function routing information
-- Documentation
+This registry provides a single source of truth for all 14 Claude AI functions, eliminating
+the need to maintain function definitions in multiple files.
+
+ARCHITECTURE:
+- AI_FUNCTIONS dictionary contains complete metadata for all Claude functions
+- Context service imports function definitions for Claude API
+- Function executor uses registry for dynamic routing (eliminating hardcoded if/elif chains)
+- All function schemas, descriptions, and routing centralized here
+
+AI_FUNCTIONS STRUCTURE:
+Each function entry contains:
+- "name": Claude function name (matches key)
+- "description": Detailed function description for Claude API
+- "input_schema": JSON schema for Claude API parameter validation
+- "executor": Method name in FunctionExecutor class (e.g., "_execute_portfolio_analysis")
+- "underlying_function": Actual function(s) called by executor (METADATA ONLY - not used programmatically)
+- "output_schema": Expected return format (optional, for documentation)
+- "examples": Sample inputs for error handling (optional)
+- "example_input": Complete example for testing (optional)
+
+USAGE:
+- get_function_definitions(): Returns Claude API format for all functions
+- get_function_executor(name): Returns executor method name for dynamic routing
+- get_function_examples(name): Returns examples for error handling
+- get_all_function_names(): Returns list of all available function names
 """
 
 AI_FUNCTIONS = {
     "create_portfolio_scenario": {
         "name": "create_portfolio_scenario",
-        "description": "Create and analyze a completely new portfolio configuration with user-specified holdings or allocations and optional custom risk limits. Generates full risk analysis for the new portfolio scenario. Use when users want to test entirely different portfolio approaches or compare against alternative allocation strategies.",
+        "description": "Create a new portfolio scenario YAML file with specified holdings and allocations. Supports flexible input formats including percentages, weights, dollar amounts, and share counts with automatic format detection. Returns the created scenario file path for further analysis. Use this when users want to test new portfolio allocations, create 'what if' scenarios, or set up portfolios for analysis.",
         
         # Claude API format
         "input_schema": {
@@ -42,7 +61,7 @@ AI_FUNCTIONS = {
         
         # Function executor information
         "executor": "_execute_create_scenario",
-        "underlying_function": "create_portfolio_yaml",
+        "underlying_function": ["create_portfolio_yaml", "create_risk_limits_yaml", "inject_all_proxies"],
         
         # Expected output format
         "output_schema": {
@@ -86,7 +105,7 @@ AI_FUNCTIONS = {
             },
             "required": []
         },
-        "executor": "_execute_run_portfolio_analysis",
+        "executor": "_execute_portfolio_analysis",
         "underlying_function": "run_portfolio_analysis"
     },
     
@@ -111,7 +130,7 @@ AI_FUNCTIONS = {
             },
             "required": ["ticker"]
         },
-        "executor": "_execute_analyze_stock",
+        "executor": "_execute_stock_analysis",
         "underlying_function": "analyze_stock"
     },
     
@@ -133,7 +152,7 @@ AI_FUNCTIONS = {
             },
             "required": ["target_weights"]
         },
-        "executor": "_execute_run_what_if_scenario",
+        "executor": "_execute_what_if_scenario",
         "underlying_function": "run_what_if_scenario"
     },
     
@@ -150,7 +169,7 @@ AI_FUNCTIONS = {
             },
             "required": []
         },
-        "executor": "_execute_optimize_minimum_variance",
+        "executor": "_execute_min_variance",
         "underlying_function": "optimize_minimum_variance"
     },
     
@@ -167,7 +186,7 @@ AI_FUNCTIONS = {
             },
             "required": []
         },
-        "executor": "_execute_optimize_maximum_return",
+        "executor": "_execute_max_return",
         "underlying_function": "optimize_maximum_return"
     },
     
@@ -184,7 +203,7 @@ AI_FUNCTIONS = {
             },
             "required": []
         },
-        "executor": "_execute_get_risk_score",
+        "executor": "_execute_risk_score",
         "underlying_function": "get_risk_score"
     },
     
@@ -201,7 +220,7 @@ AI_FUNCTIONS = {
             },
             "required": []
         },
-        "executor": "_execute_setup_new_portfolio",
+        "executor": "_execute_setup_portfolio",
         "underlying_function": "setup_new_portfolio"
     },
     
@@ -228,7 +247,7 @@ AI_FUNCTIONS = {
             },
             "required": []
         },
-        "executor": "_execute_estimate_expected_returns",
+        "executor": "_execute_estimate_returns",
         "underlying_function": "estimate_expected_returns"
     },
     
@@ -250,7 +269,7 @@ AI_FUNCTIONS = {
             },
             "required": ["expected_returns"]
         },
-        "executor": "_execute_set_expected_returns",
+        "executor": "_execute_set_returns",
         "underlying_function": "set_expected_returns"
     },
     
@@ -262,7 +281,7 @@ AI_FUNCTIONS = {
             "properties": {},
             "required": []
         },
-        "executor": "_execute_view_current_risk_limits",
+        "executor": "_execute_view_risk_limits",
         "underlying_function": "view_current_risk_limits"
     },
     
@@ -325,7 +344,7 @@ AI_FUNCTIONS = {
             },
             "required": []
         },
-        "executor": "_execute_calculate_portfolio_performance",
+        "executor": "_execute_portfolio_performance",
         "underlying_function": "calculate_portfolio_performance"
     }
 }
