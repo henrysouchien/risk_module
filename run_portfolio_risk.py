@@ -299,9 +299,6 @@ def display_portfolio_summary(summary: dict):
     print("\n=== Target Allocations ===")
     print(summary["allocations"], "\n")
 
-    print("=== Portfolio Returns (head) ===")
-    print(summary["portfolio_returns"].head(), "\n")
-
     print("=== Covariance Matrix ===")
     print(summary["covariance_matrix"], "\n")
 

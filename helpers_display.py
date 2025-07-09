@@ -153,5 +153,51 @@ def compare_beta_tables(old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
 # In[ ]:
 
 
+# ─── File: helpers_display.py ──────────────────────────────────────────
+
+from typing import Dict, Union
+
+def format_stock_metrics(metrics_dict: Dict[str, Union[float, int]], title: str) -> None:
+    """
+    Format stock analysis metrics dictionary into readable output.
+    
+    Args:
+        metrics_dict: Dictionary of metric names to values
+        title: Title for the metrics section
+    """
+    print(f"=== {title} ===")
+    
+    # Common formatting mappings
+    formatters = {
+        'monthly_vol': lambda x: f"Monthly Volatility:      {x:.2%}",
+        'annual_vol': lambda x: f"Annual Volatility:       {x:.2%}",
+        'beta': lambda x: f"Beta:                   {x:.3f}",
+        'alpha': lambda x: f"Alpha (Monthly):        {x:.4f}",
+        'r_squared': lambda x: f"R-Squared:              {x:.3f}",
+        'idio_vol_m': lambda x: f"Idiosyncratic Vol:      {x:.2%}",
+        'tracking_error': lambda x: f"Tracking Error:         {x:.2%}",
+        'information_ratio': lambda x: f"Information Ratio:      {x:.3f}",
+        'total_vol': lambda x: f"Total Volatility:       {x:.2%}",
+        'systematic_vol': lambda x: f"Systematic Vol:         {x:.2%}",
+        'market_correlation': lambda x: f"Market Correlation:     {x:.3f}",
+    }
+    
+    # Format each metric
+    for key, value in metrics_dict.items():
+        if key in formatters:
+            print(formatters[key](value))
+        else:
+            # Default formatting for unknown metrics
+            if isinstance(value, float):
+                if abs(value) < 0.01:  # Very small numbers, likely rates/ratios
+                    print(f"{key.replace('_', ' ').title():<20} {value:.4f}")
+                elif abs(value) < 1:   # Numbers < 1, likely percentages
+                    print(f"{key.replace('_', ' ').title():<20} {value:.2%}")
+                else:                  # Larger numbers, likely ratios/multipliers
+                    print(f"{key.replace('_', ' ').title():<20} {value:.3f}")
+            else:
+                print(f"{key.replace('_', ' ').title():<20} {value}")
+    
+    print()  # Add blank line after section
 
 

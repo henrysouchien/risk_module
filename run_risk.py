@@ -43,6 +43,7 @@ from gpt_helpers import (
     interpret_portfolio_risk,
     generate_subindustry_peers,
 )
+from helpers_display import format_stock_metrics
 
 def run_and_interpret(portfolio_yaml: str):
     """
@@ -386,15 +387,13 @@ def run_stock(
         profile = get_detailed_stock_factor_profile(
             ticker, start, end, factor_proxies
         )
-        print("=== Volatility ===")
-        print(profile["vol_metrics"])
-
-        print("\n=== Market Regression ===")
-        print(profile["regression_metrics"])
-
-        print("\n=== Factor Summary ===")
+        
+        format_stock_metrics(profile["vol_metrics"], "Volatility Metrics")
+        format_stock_metrics(profile["regression_metrics"], "Market Regression")
+        
+        print("=== Factor Summary ===")
         print(profile["factor_summary"])
-
+        
     # ─── 4. Diagnostics path B: simple market regression ────────────────
     else:
         result = get_stock_risk_profile(
@@ -403,11 +402,9 @@ def run_stock(
             end_date=end,
             benchmark="SPY"
         )
-        print("=== Volatility Metrics ===")
-        print(result["vol_metrics"])
-
-        print("\n=== Market Regression (SPY) ===")
-        print(result["risk_metrics"])
+        
+        format_stock_metrics(result["vol_metrics"], "Volatility Metrics")
+        format_stock_metrics(result["risk_metrics"], "Market Regression (SPY)")
 
 def run_portfolio_performance(filepath: str):
     """
