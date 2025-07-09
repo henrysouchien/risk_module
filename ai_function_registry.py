@@ -111,7 +111,7 @@ AI_FUNCTIONS = {
     
     "analyze_stock": {
         "name": "analyze_stock",
-        "description": "Perform detailed individual stock risk analysis including factor exposures, beta calculations, and risk profile assessment. Returns stock-specific risk metrics, factor sensitivities, and peer comparisons. Use when users ask about specific stock risk characteristics or want to understand how a particular stock contributes to portfolio risk.",
+        "description": "Perform detailed individual stock risk analysis including factor exposures, beta calculations, and risk profile assessment. Returns stock-specific risk metrics, factor sensitivities, and peer comparisons. Automatically includes comprehensive factor analysis for stocks that have factor proxies defined in the portfolio configuration. Use when users ask about specific stock risk characteristics or want to understand how a particular stock contributes to portfolio risk.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -126,6 +126,15 @@ AI_FUNCTIONS = {
                 "end_date": {
                     "type": "string",
                     "description": "Analysis end date in YYYY-MM-DD format. Optional - defaults to current date."
+                },
+                "yaml_path": {
+                    "type": "string",
+                    "description": "Path to portfolio YAML file to lookup factor proxies for comprehensive analysis. Optional - defaults to 'portfolio.yaml'. Set to null to disable factor proxy lookup and perform simple market regression only."
+                },
+                "factor_proxies": {
+                    "type": "object",
+                    "description": "Direct factor proxy mapping for custom factor analysis (e.g., {'market': 'SPY', 'momentum': 'MTUM', 'value': 'IWD', 'industry': 'XLF'}). Optional - if provided, overrides yaml_path lookup and enables multi-factor analysis with these specific proxies.",
+                    "additionalProperties": {"type": "string"}
                 }
             },
             "required": ["ticker"]
