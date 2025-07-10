@@ -33,10 +33,18 @@ except ImportError:
 # =====================================================================
 # These scenarios define the stress tests used for risk calculations
 # 
-# USAGE:
-# - Risk Score: Uses actual historical data when available, these are FALLBACK values
-# - Suggested Limits: Uses these directly for market/concentration/sector scenarios
-# - Update these values as new historical data becomes available
+# DATA SOURCE HIERARCHY:
+# 1. Historical Data: Preferred when available (via max_betas parameters)
+# 2. Configured Scenarios: Fallback values defined below
+# 
+# USAGE BY FUNCTION:
+# - calculate_factor_risk_loss: Historical → Fallback to configured
+# - calculate_sector_risk_loss: Historical → Fallback to configured  
+# - calculate_concentration_risk_loss: Always uses configured scenarios
+# - calculate_volatility_risk_loss: Always uses configured scenarios
+# - calculate_suggested_risk_limits: Historical → Fallback to configured
+#
+# Update these values as new historical data becomes available
 
 WORST_CASE_SCENARIOS = {
     # Market crash scenario - based on major historical crashes
@@ -70,6 +78,10 @@ def score_excess_ratio(excess_ratio: float) -> float:
     -------
     float
         Score from 0-100 based on excess ratio
+        - 100: Very safe (≤80% of limit)
+        - 75: At limit threshold  
+        - 50: Moderately over limit
+        - 0: Significantly over limit (≥150%)
     """
     if excess_ratio <= 0.8:        # 20% buffer below limit
         return 100  # Safe - Very low disruption risk
@@ -83,11 +95,35 @@ def score_excess_ratio(excess_ratio: float) -> float:
 
 def calculate_factor_risk_loss(summary: Dict[str, Any], leverage_ratio: float, max_betas: Dict[str, float] = None, max_single_factor_loss: float = -0.10) -> float:
     """
-    Calculate potential loss from factor exposure using actual historical worst losses.
+    Calculate potential loss from factor exposure.
     
-    Uses actual historical worst monthly losses if max_betas provided, otherwise falls back to theoretical scenarios.
+    DATA SOURCES (in priority order):
+    1. Historical worst losses: Derived from max_betas when provided
+       Formula: worst_loss = max_single_factor_loss / max_beta
+    2. Configured scenarios: WORST_CASE_SCENARIOS as fallback
     
-    Note: Negative betas can be protective (e.g., negative momentum beta gains during momentum crash)
+    Parameters
+    ----------
+    summary : Dict[str, Any]
+        Portfolio analysis with factor betas
+    leverage_ratio : float
+        Portfolio leverage multiplier (use 1.0 when weights already include leverage)
+    max_betas : Dict[str, float], optional
+        Historical max betas by factor. When provided, derives historical worst losses.
+        When None, uses configured WORST_CASE_SCENARIOS.
+    max_single_factor_loss : float, default -0.10
+        Maximum acceptable loss from any single factor (used with historical data)
+        
+    Returns
+    -------
+    float
+        Maximum potential loss from factor exposures
+        
+    Notes
+    -----
+    - Only counts negative factor impacts as risk (positive impacts are protective)
+    - Uses actual portfolio factor betas from summary["portfolio_factor_betas"]
+    - For each factor: loss = |portfolio_beta × worst_case_move × leverage_ratio|
     """
     portfolio_betas = summary["portfolio_factor_betas"]
     
@@ -138,7 +174,25 @@ def calculate_concentration_risk_loss(summary: Dict[str, Any], leverage_ratio: f
     """
     Calculate potential loss from single stock concentration.
     
-    Uses configured worst-case scenario from WORST_CASE_SCENARIOS.
+    DATA SOURCE: Always uses configured WORST_CASE_SCENARIOS
+    
+    Parameters
+    ----------
+    summary : Dict[str, Any]
+        Portfolio analysis with position weights
+    leverage_ratio : float
+        Portfolio leverage multiplier (use 1.0 when weights already include leverage)
+        
+    Returns
+    -------
+    float
+        Potential loss from largest single position
+        
+    Notes
+    -----
+    - Uses largest absolute position weight from portfolio
+    - Applies configured single_stock_crash scenario (80% loss)
+    - Formula: max_position × single_stock_crash × leverage_ratio
     """
     weights = summary["allocations"]["Portfolio Weight"]
     max_position = weights.abs().max()
@@ -153,7 +207,25 @@ def calculate_volatility_risk_loss(summary: Dict[str, Any], leverage_ratio: floa
     """
     Calculate potential loss from portfolio volatility.
     
-    Uses configured maximum reasonable volatility from WORST_CASE_SCENARIOS.
+    DATA SOURCE: Always uses configured WORST_CASE_SCENARIOS
+    
+    Parameters
+    ----------
+    summary : Dict[str, Any]
+        Portfolio analysis with volatility metrics
+    leverage_ratio : float
+        Portfolio leverage multiplier (use 1.0 when weights already include leverage)
+        
+    Returns
+    -------
+    float
+        Potential loss from portfolio volatility
+        
+    Notes
+    -----
+    - Uses actual annual portfolio volatility from summary["volatility_annual"]
+    - Caps at configured max_reasonable_volatility (40%)
+    - Formula: min(actual_vol, max_reasonable_vol) × leverage_ratio
     """
     actual_vol = summary["volatility_annual"]
     max_reasonable_vol = WORST_CASE_SCENARIOS["max_reasonable_volatility"]
@@ -165,10 +237,35 @@ def calculate_volatility_risk_loss(summary: Dict[str, Any], leverage_ratio: floa
 
 def calculate_sector_risk_loss(summary: Dict[str, Any], leverage_ratio: float, max_betas_by_proxy: Dict[str, float] = None, max_single_factor_loss: float = -0.08) -> float:
     """
-    Calculate potential loss from sector exposure using actual portfolio betas and historical worst losses.
+    Calculate potential loss from sector exposure.
     
-    For each sector: sector_beta × worst_historical_loss × leverage
-    Returns the maximum (worst-case) sector loss.
+    DATA SOURCES (in priority order):
+    1. Historical worst losses: Derived from max_betas_by_proxy when provided
+       Formula: worst_loss = max_single_factor_loss / max_beta
+    2. Configured scenarios: WORST_CASE_SCENARIOS["sector_crash"] as fallback
+    
+    Parameters
+    ----------
+    summary : Dict[str, Any]
+        Portfolio analysis with industry betas
+    leverage_ratio : float
+        Portfolio leverage multiplier (use 1.0 when weights already include leverage)
+    max_betas_by_proxy : Dict[str, float], optional
+        Historical max betas by industry proxy. When provided, derives historical worst losses.
+        When None, uses configured sector_crash scenario.
+    max_single_factor_loss : float, default -0.08
+        Maximum acceptable loss from any single factor (used with historical data)
+        
+    Returns
+    -------
+    float
+        Maximum potential loss from sector exposures
+        
+    Notes
+    -----
+    - Uses portfolio betas to each industry proxy from summary["industry_variance"]["per_industry_group_beta"]
+    - Only counts negative sector impacts as risk
+    - For each sector: loss = |portfolio_beta × worst_sector_loss × leverage_ratio|
     """
     # Get portfolio's beta exposure to each industry proxy
     industry_betas = summary["industry_variance"].get("per_industry_group_beta", {})
@@ -404,27 +501,56 @@ def calculate_suggested_risk_limits(summary: Dict[str, Any], max_loss: float, cu
     Work backwards from max loss tolerance to suggest risk limits that would
     keep the current portfolio structure within acceptable risk levels.
     
+    DATA SOURCES (in priority order):
+    1. Historical worst losses: Calculated from actual factor proxy data when available
+       Requires stock_factor_proxies, start_date, and end_date parameters
+    2. Configured scenarios: WORST_CASE_SCENARIOS as fallback when historical data unavailable
+    
     Parameters
     ----------
     summary : Dict[str, Any]
-        Portfolio analysis summary
+        Portfolio analysis summary with betas, weights, volatility, etc.
     max_loss : float
-        Maximum acceptable loss (e.g., 0.25 for 25%)
+        Maximum acceptable portfolio loss (e.g., 0.25 for 25%)
     current_leverage : float
-        Current portfolio leverage ratio
-    max_single_factor_loss : float
-        Single factor loss limit (used for momentum/value, NOT market)
-    stock_factor_proxies : Dict
-        Stock factor proxy mappings
-    start_date : str
-        Start date for historical analysis
-    end_date : str
-        End date for historical analysis
+        Current portfolio leverage ratio (adjusted for raw vs normalized weights)
+    max_single_factor_loss : float, default -0.10
+        Maximum acceptable loss from any single factor (used with historical data)
+    stock_factor_proxies : Dict, optional
+        Stock factor proxy mappings for historical analysis
+        When None, uses configured scenarios for all calculations
+    start_date : str, optional
+        Start date for historical analysis (e.g., "2020-01-01")
+        Required for historical data calculation
+    end_date : str, optional
+        End date for historical analysis (e.g., "2024-12-31")
+        Required for historical data calculation
         
     Returns
     -------
     Dict[str, Any]
-        Suggested risk limits and adjustments
+        Suggested risk limits organized by category:
+        - factor_limits: Market, momentum, value beta limits
+        - concentration_limit: Maximum single position size
+        - volatility_limit: Maximum portfolio volatility
+        - sector_limit: Maximum sector exposure
+        - leverage_limit: Maximum portfolio leverage
+        
+    Notes
+    -----
+    Factor Limits:
+    - Market: Uses portfolio max_loss with historical/configured market crash
+    - Momentum/Value: Uses max_single_factor_loss with historical/configured crashes
+    
+    Other Limits:
+    - Concentration: Always uses configured single_stock_crash (80%)
+    - Volatility: Simple volatility ≤ max_loss / leverage proxy
+    - Sector: Always uses configured sector_crash (50%)
+    - Leverage: Calculated from worst-case scenario across all risk types
+    
+    Historical Data Fallback:
+    If historical calculation fails, automatically falls back to configured scenarios
+    with warning message to user.
     """
     # =====================================================================
     # SCENARIO CONFIGURATION - Using module-level constants
@@ -1048,6 +1174,12 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
         # Calculate leverage ratio
         leverage_ratio = standardized.get("leverage", 1.0)
         
+        # When using raw weights (normalize_weights = False), the weights already represent 
+        # the true economic exposure, so we shouldn't apply leverage adjustment to risk calculations
+        from settings import PORTFOLIO_DEFAULTS
+        normalize_weights = PORTFOLIO_DEFAULTS.get("normalize_weights", True)
+        risk_leverage_ratio = leverage_ratio if normalize_weights else 1.0
+        
         # ═══════════════════════════════════════════════════════════════════════════
         # DISRUPTION RISK SCORING (High-level 0-100 score)
         # ═══════════════════════════════════════════════════════════════════════════
@@ -1064,7 +1196,7 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
             variance_limits=risk_config["variance_limits"],
             max_betas=max_betas,
             max_proxy_betas=max_betas_by_proxy,
-            leverage_ratio=leverage_ratio,
+            leverage_ratio=risk_leverage_ratio,
             max_single_factor_loss=max_single_factor_loss
         )
         
@@ -1083,7 +1215,7 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
             variance_limits=risk_config["variance_limits"],
             max_betas=max_betas,
             max_proxy_betas=max_betas_by_proxy,
-            leverage_ratio=leverage_ratio
+            leverage_ratio=risk_leverage_ratio
         )
         
         # Display detailed risk limits analysis
@@ -1133,7 +1265,7 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
         
         # Calculate and display suggested risk limits
         max_loss = abs(risk_config["portfolio_limits"]["max_loss"])
-        suggestions = calculate_suggested_risk_limits(summary, max_loss, leverage_ratio, max_single_factor_loss, config.get("stock_factor_proxies"), config.get("start_date"), config.get("end_date"))
+        suggestions = calculate_suggested_risk_limits(summary, max_loss, risk_leverage_ratio, max_single_factor_loss, config.get("stock_factor_proxies"), config.get("start_date"), config.get("end_date"))
         display_suggested_risk_limits(suggestions, max_loss)
         
         # Return comprehensive results
