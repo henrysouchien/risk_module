@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[1]:
 
 
 from typing import Optional, Dict, Any, Tuple
@@ -105,18 +105,74 @@ def solve_min_variance_with_risk_limits(
     allow_short: bool = False,
 ):
     """
-    Finds the *smallest-variance* weights that satisfy **all** limits.
-    Keeps the current universe (no new tickers). If infeasible, raises.
+    Solves minimum variance portfolio optimization subject to comprehensive risk constraints.
+    
+    Finds the portfolio allocation that minimizes variance (w^T Σ w) while satisfying:
+    • Concentration limits (max single position size)
+    • Factor beta limits (market, momentum, value) 
+    • Industry-specific proxy beta limits (per ETF/peer basket)
+    • Portfolio volatility limits (annualized)
+    • Optional long-only constraint
+    
+    The optimizer correctly prioritizes lowest-risk assets (e.g., SGOV government bonds)
+    and will allocate maximum allowable amounts to assets with minimal volatility 
+    and factor exposures, subject to concentration limits.
+
+    Mathematical Formulation
+    ------------------------
+    minimize:    w^T Σ w                           (portfolio variance)
+    subject to:  Σ w_i = 1                        (fully invested)
+                 |w_i| ≤ c_max                     (concentration limit)
+                 |Σ w_i β_i,f| ≤ β_max,f           (factor beta limits)
+                 |Σ w_i β_i,p| ≤ β_max,p           (per-proxy beta limits) 
+                 √(12 w^T Σ w) ≤ σ_max             (annualized volatility)
+                 w_i ≥ 0 (if long_only=True)       (no short positions)
+
+    Parameters
+    ----------
+    weights : Dict[str, float]
+        Current portfolio weights (used to define asset universe and covariance estimation)
+    risk_cfg : Dict[str, Any]
+        Parsed risk_limits.yaml containing:
+        - portfolio_limits: {max_volatility}
+        - concentration_limits: {max_single_stock_weight}  
+        - max_single_factor_loss: loss limit for beta calculations
+    start, end : str
+        Historical window (YYYY-MM-DD) for covariance and beta estimation
+    proxies : Dict[str, Dict[str, Any]]
+        Asset-to-proxy mapping from portfolio.yaml stock_factor_proxies
+    allow_short : bool, default False
+        If True, allows negative weights (long/short optimization)
 
     Returns
     -------
-    Dict[str, float] : optimised weights (sum to 1)
+    Dict[str, float]
+        Optimized portfolio weights summing to 1.0
+
+    Raises
+    ------
+    ValueError
+        If optimization problem is infeasible under given constraints
+
+    Notes
+    -----
+    - Uses monthly covariance matrix with proper √12 annualization for volatility
+    - Industry beta constraints are applied per-proxy (not globally) to avoid
+      over-constraining the system with worst-performing proxy limits
+    - Solver: ECOS with QCP=True for second-order cone constraints
+    - Expected result: High allocation to lowest-risk assets (bonds, low-beta stocks)
     """
-    tickers = list(weights)
+    from portfolio_risk import normalize_weights
+    from risk_helpers import get_worst_monthly_factor_losses
+    import numpy as np
+    
+    # Pre-normalize weights for internal consistency
+    normalized_weights = normalize_weights(weights, normalize=True)
+    tickers = list(normalized_weights)
     n       = len(tickers)
 
     # Pre-compute covariance
-    base_summary = build_portfolio_view(weights, start, end, None, proxies)
+    base_summary = build_portfolio_view(normalized_weights, start, end, None, proxies)
     Σ = base_summary["covariance_matrix"].loc[tickers, tickers].values
 
     # Limits for betas
@@ -145,28 +201,50 @@ def solve_min_variance_with_risk_limits(
     if not allow_short:
         cons += [w >= 0]
 
-    # 3. Factor beta limits
+    # 3. Factor beta limits (exclude industry - handled per-proxy)
     beta_mat = base_summary["df_stock_betas"].fillna(0.0).loc[tickers]  # shape n × factors
     for fac, max_b in max_betas.items():
-        if fac not in beta_mat:
+        if fac not in beta_mat or fac == "industry":  # Skip industry - handled per-proxy
             continue
         cons += [
             cp.abs(beta_mat[fac].values @ w) <= max_b
         ]
 
-    # 4. Gross volatility limit
+    # 3b. Per-proxy beta constraints (industry-specific limits) - RE-ENABLED
+    loss_lim = risk_cfg["max_single_factor_loss"]
+    worst_proxy_loss = get_worst_monthly_factor_losses(proxies, start, end)
+    
+    proxy_caps = {
+        proxy: (np.inf if loss >= 0 else loss_lim / loss)
+        for proxy, loss in worst_proxy_loss.items()
+    }
+    
+    # Build coefficient vectors for each proxy
+    for proxy, cap in proxy_caps.items():
+        coeff = []
+        for t in tickers:
+            this_proxy = proxies[t].get("industry")
+            if this_proxy == proxy:
+                coeff.append(beta_mat.loc[t, "industry"])
+            else:
+                coeff.append(0.0)
+        
+        coeff_array = np.array(coeff)
+        if not np.allclose(coeff_array, 0):  # Only add constraint if non-zero
+            cons += [cp.abs(coeff_array @ w) <= cap]
+
+    # 4. Gross volatility limit (annualize monthly covariance properly)
     max_vol = risk_cfg["portfolio_limits"]["max_volatility"]
-    cons += [cp.quad_form(w, Σ) <= max_vol**2]
+    cons += [cp.sqrt(cp.quad_form(w, Σ)) * np.sqrt(12) <= max_vol]
 
     prob = cp.Problem(obj, cons)
-    prob.solve(solver=cp.ECOS, verbose=False)
+    prob.solve(solver=cp.ECOS, qcp=True, verbose=False)
 
     if prob.status not in ("optimal", "optimal_inaccurate"):
         raise ValueError(f"Infeasible under current limits (status={prob.status})")
 
     new_w = {t: float(w.value[i]) for i, t in enumerate(tickers)}
     return new_w
-    
 
 
 # In[18]:
@@ -306,83 +384,6 @@ def evaluate_weights(
         max_betas,
     )
     return df_risk, df_beta
-
-
-# In[20]:
-
-
-# ─── File: portfolio_optimizer.py ──────────────────────────────────
-
-# ---------------------------------------------------------------
-#  Minimum variance portfolio helper
-# ---------------------------------------------------------------
-
-from typing import Dict, Any
-import pandas as pd
-
-def run_min_var_optimiser(
-    weights: Dict[str, float],
-    risk_cfg: Dict[str, Any],
-    start_date: str,
-    end_date:   str,
-    proxies: Dict[str, Dict[str, Any]],
-    echo: bool = True,
-) -> Tuple[Dict[str, float], pd.DataFrame, pd.DataFrame]:
-    """
-    Minimum-variance portfolio under firm-wide limits
-    ------------------------------------------------
-
-    Objective
-    ---------
-    **min wᵀ Σ w**  
-    Σ = monthly covariance estimated over *start_date*→*end_date*.
-
-    Constraints
-    -----------
-    1. ∑ wᵢ = 1  (fully invested)  
-    2. wᵢ ≥ 0  (long-only; see lower-level solver for shorts)  
-    3. |wᵢ| ≤ single-name cap from *risk_cfg*  
-    4. √12 · √(wᵀ Σ w) ≤ σ_cap  
-    5. |β_port,f| ≤ dynamic β_max,f (via `compute_max_betas`)
-
-    Convex QP solved with CVXPY + ECOS.  
-    Returns only the optimised weights; use `evaluate_weights(...)`
-    if you need PASS/FAIL tables.
-
-    Parameters
-    ----------
-    weights : {ticker: weight} (sums ≈ 1)  
-    risk_cfg : parsed *risk_limits.yaml*  
-    start_date, end_date : YYYY-MM-DD window for Σ & betas  
-    proxies : `stock_factor_proxies` from portfolio YAML  
-    echo : print weights ≥ 0.01 % when True
-
-    Returns
-    -------
-    Dict[str, float] – optimised weights (summing to 1)
-    """
-    
-    # 1. ---------- solve ----------------------------------------------------
-    new_w = solve_min_variance_with_risk_limits(
-        weights,
-        risk_cfg,
-        start_date,
-        end_date,
-        proxies,
-    )
-
-    # 2. ---------- optional console output ---------------------------------
-    if echo:
-        # 3a. pretty-print weights ≥ 0.01 %
-        print("\n🎯  Target minimum-variance weights:\n")
-        (pd.Series(new_w, name="Weight")
-           .loc[lambda s: s.abs() > 0.0001]
-           .sort_values(ascending=False)
-           .apply(lambda x: f"{x:.2%}")
-           .pipe(lambda s: print(s.to_string()))
-        )
-
-    return new_w
 
 
 # In[21]:
@@ -645,7 +646,7 @@ def run_what_if_scenario(
     return summary_new, risk_new, beta_new, cmp_risk, cmp_beta
 
 
-# In[23]:
+# In[20]:
 
 
 # ─── File: portfolio_optimizer.py ──────────────────────────────────
@@ -664,7 +665,7 @@ def run_min_var_optimiser(
     end_date:   str,
     proxies: Dict[str, Dict[str, Any]],
     echo: bool = True,
-) -> Tuple[Dict[str, float], pd.DataFrame, pd.DataFrame]:
+) -> Dict[str, float]:
     """
     Minimum-variance portfolio under firm-wide limits
     ------------------------------------------------
@@ -896,13 +897,17 @@ def solve_max_return_with_risk_limits(
         proxy’s historical worst 1-month return (see
         :pyfunc:`risk_helpers.get_worst_monthly_factor_losses`).
     """
-    from portfolio_risk import build_portfolio_view          # reuse: get Σ & betas
+    from portfolio_risk import build_portfolio_view, normalize_weights          # reuse: get Σ & betas
     from risk_helpers   import compute_max_betas, get_worst_monthly_factor_losses
 
-    # ---------- 0. Pre-compute Σ (monthly) & stock-level betas -------------
-    tickers = list(init_weights)
+    # ---------- 0. Pre-normalize weights for internal consistency -----------
+    # Always work with normalized weights (sum = 1) to ensure risk calculations
+    # and constraints are consistent, regardless of external normalization settings
+    normalized_weights = normalize_weights(init_weights, normalize=True)
+    tickers = list(normalized_weights)
+    
     view = build_portfolio_view(
-        init_weights, start_date, end_date,
+        normalized_weights, start_date, end_date,
         expected_returns=None,
         stock_factor_proxies=stock_factor_proxies,
     )

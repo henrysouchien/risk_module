@@ -8,7 +8,7 @@
 
 import pandas as pd
 import numpy as np
-from typing import Dict
+from typing import Dict, Optional
 
 from data_loader import fetch_monthly_close
 from factor_utils import (
@@ -19,22 +19,34 @@ from factor_utils import (
     calc_weighted_factor_variance,
 )
 
-def normalize_weights(weights: Dict[str, float], normalize: bool = True) -> Dict[str, float]:
+from settings import PORTFOLIO_DEFAULTS
+
+def normalize_weights(weights: Dict[str, float], normalize: Optional[bool] = None) -> Dict[str, float]:
     """
-    Ensure weights sum to ±1 while preserving economic meaning (signs).
+    Normalize weights to gross exposure (sum of absolute values = 1).
     
-    Uses absolute value normalization to prevent sign flipping when total < 0.
-    This preserves the original investment intention (long stays long, short stays short).
+    This preserves the economic meaning of positions (long stays long, short stays short)
+    while normalizing to traditional portfolio scaling where the sum of all absolute 
+    position sizes equals 100%.
     
-    If normalize is False, returns weights as-is.
+    Args:
+        weights: Dictionary of ticker -> weight
+        normalize: If True, normalize to gross exposure. If False, return as-is.
+                  If None (default), uses global setting from PORTFOLIO_DEFAULTS.
+    
+    Returns:
+        Dictionary of normalized weights
     """
+    if normalize is None:
+        normalize = PORTFOLIO_DEFAULTS.get("normalize_weights", True)
+    
     if not normalize:
         return weights
-    total = sum(weights.values())
+    total = sum(abs(w) for w in weights.values())
     if total == 0:
-        raise ValueError("Sum of weights is zero, cannot normalize.")
-    # Use absolute value to preserve signs and economic meaning
-    return {t: w / abs(total) for t, w in weights.items()}
+        raise ValueError("Sum of absolute weights is zero, cannot normalize.")
+    # Normalize to gross exposure (sum of absolute values)
+    return {t: w / total for t, w in weights.items()}
 
 def compute_portfolio_returns(
     returns: pd.DataFrame,
