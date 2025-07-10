@@ -55,6 +55,7 @@ templates/dashboard.html
 tools/
 backup/
 backup_system.sh
+prototype/
 
 # Plaid integration development files
 *plaid_loader*
