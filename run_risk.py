@@ -150,10 +150,12 @@ def run_portfolio(filepath: str):
     display_portfolio_summary(summary)
     
     # ─── 3. Compute Beta Limits ─────────────────────────────
+    from settings import PORTFOLIO_DEFAULTS
+    lookback_years = PORTFOLIO_DEFAULTS.get('worst_case_lookback_years', 10)
     max_betas, max_betas_by_proxy = calc_max_factor_betas(
         portfolio_yaml = filepath,
         risk_yaml      = "risk_limits.yaml",
-        lookback_years = 10,
+        lookback_years = lookback_years,
         echo           = True,     # show helper tables
     )
 

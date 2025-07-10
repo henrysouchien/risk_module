@@ -1164,10 +1164,12 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
         )
         
         # Calculate max betas
+        from settings import PORTFOLIO_DEFAULTS
+        lookback_years = PORTFOLIO_DEFAULTS.get('worst_case_lookback_years', 10)
         max_betas, max_betas_by_proxy = calc_max_factor_betas(
             portfolio_yaml=portfolio_yaml,
             risk_yaml=risk_yaml,
-            lookback_years=10,
+            lookback_years=lookback_years,
             echo=False
         )
         

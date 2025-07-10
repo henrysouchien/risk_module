@@ -578,10 +578,12 @@ def run_what_if_scenario(
     delta, new_weights = parse_delta(yaml_path=scenario_yaml, literal_shift=shift_dict)
 
     # get proxy-level beta caps
+    from settings import PORTFOLIO_DEFAULTS
+    lookback_years = PORTFOLIO_DEFAULTS.get('worst_case_lookback_years', 10)
     _, max_betas_by_proxy = calc_max_factor_betas(
         portfolio_yaml="portfolio.yaml",
         risk_yaml="risk_limits.yaml",
-        lookback_years=10,
+        lookback_years=lookback_years,
         echo=False
     )
 
@@ -1047,10 +1049,12 @@ def run_max_return_portfolio(
         config["end_date"],
         loss_limit_pct = risk_config["max_single_factor_loss"],
     )
+    from settings import PORTFOLIO_DEFAULTS
+    lookback_years = PORTFOLIO_DEFAULTS.get('worst_case_lookback_years', 10)
     _, max_betas_by_proxy = calc_max_factor_betas(
         portfolio_yaml = "portfolio.yaml",
         risk_yaml      = "risk_limits.yaml",
-        lookback_years = 10,
+        lookback_years = lookback_years,
         echo = False,
     )
 

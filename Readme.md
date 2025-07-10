@@ -311,7 +311,8 @@ Centralized default configuration for the risk module:
 PORTFOLIO_DEFAULTS = {
     "start_date": "2019-01-31",
     "end_date": "2025-06-27",
-    "normalize_weights": False  # Global default for portfolio weight normalization
+    "normalize_weights": False,  # Global default for portfolio weight normalization
+    "worst_case_lookback_years": 10  # Historical lookback period for worst-case scenario analysis
 }
 ```
 
@@ -361,8 +362,13 @@ The risk module uses a consistent date system across all calculations:
 
 **Independent Analysis:**
 - **Single Stock**: `run_stock()` uses flexible dates (5-year default or explicit parameters)
-- **Historical Analysis**: `calc_max_factor_betas()` uses 10-year lookback for worst-case scenarios
+- **Historical Analysis**: `calc_max_factor_betas()` uses `worst_case_lookback_years` (default: 10 years) for worst-case scenarios
 - **Purpose**: These functions serve different use cases and appropriately use different date logic
+
+**Historical Worst-Case Analysis:**
+- **Lookback Period**: Uses `worst_case_lookback_years` setting (default: 10 years) ending today
+- **Purpose**: Calculates maximum allowable risk exposure based on historical worst-case factor performance
+- **Independence**: This analysis window is separate from portfolio analysis dates to ensure consistent risk benchmarks
 
 **Calculation Alignment:**
 - All factor calculations (market, momentum, value, industry) use the same date window

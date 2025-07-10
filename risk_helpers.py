@@ -164,7 +164,7 @@ import pandas as pd
 def calc_max_factor_betas(
     portfolio_yaml: str = "portfolio.yaml",
     risk_yaml: str = "risk_limits.yaml",
-    lookback_years: int = 10,
+    lookback_years: int = None,
     echo: bool = True,
 ) -> Tuple[Dict[str, float], Dict[str, float]]:
     """
@@ -177,8 +177,9 @@ def calc_max_factor_betas(
         Path to the YAML file containing `stock_factor_proxies`.
     risk_yaml : str
         Path to YAML containing `max_single_factor_loss`.
-    lookback_years : int
+    lookback_years : int, optional
         Historical window length to scan (ending today).
+        If None, uses PORTFOLIO_DEFAULTS['worst_case_lookback_years'].
     echo : bool
         If True, pretty-prints the intermediate tables to stdout.
 
@@ -196,6 +197,11 @@ def calc_max_factor_betas(
 
     proxies = port_cfg["stock_factor_proxies"]
     loss_limit = risk_cfg["max_single_factor_loss"]  # e.g. -0.10
+    
+    # Use default from settings if not specified
+    if lookback_years is None:
+        from settings import PORTFOLIO_DEFAULTS
+        lookback_years = PORTFOLIO_DEFAULTS['worst_case_lookback_years']
 
     # 2. --- date window ------------------------------------------------------
     end_dt = datetime.today()
@@ -236,6 +242,9 @@ def calc_max_factor_betas(
 
     # --- pretty print block --------------------------------------------------
     if echo:
+        print(f"\n=== Historical Worst-Case Analysis ({lookback_years}-year lookback) ===")
+        print(f"Analysis Period: {start_str} to {end_str}")
+        
         print("\n=== Worst Monthly Losses per Proxy ===")
         for p, v in sorted(worst_per_proxy.items(), key=lambda kv: kv[1]):
             print(f"{p:<12} : {v:.2%}")

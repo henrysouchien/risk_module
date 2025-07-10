@@ -647,7 +647,8 @@ The inputs layer provides a clean abstraction for all data management operations
 PORTFOLIO_DEFAULTS = {
     "start_date": "2019-01-31",
     "end_date": "2025-06-27",
-    "normalize_weights": False  # Global default for portfolio weight normalization
+    "normalize_weights": False,  # Global default for portfolio weight normalization
+    "worst_case_lookback_years": 10  # Historical lookback period for worst-case scenario analysis
 }
 ```
 
@@ -701,7 +702,9 @@ today = pd.Timestamp.today().normalize()
 start = start or today - pd.DateOffset(years=5)
 end = end or today
 
-# Historical worst-case analysis (long lookback)
+# Historical worst-case analysis (configurable lookback)
+from settings import PORTFOLIO_DEFAULTS
+lookback_years = PORTFOLIO_DEFAULTS.get('worst_case_lookback_years', 10)
 end_dt = datetime.today()
 start_dt = end_dt - pd.DateOffset(years=lookback_years)
 ```
