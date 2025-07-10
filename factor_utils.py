@@ -97,7 +97,12 @@ def fetch_peer_median_monthly_returns(
 
     Returns:
         pd.Series: Median of monthly returns across peers.
+                   Returns empty Series if no tickers provided.
     """
+    # Handle empty ticker list
+    if not tickers:
+        return pd.Series(dtype=float, name='median_returns')
+    
     series_list = []
     for t in tickers:
         prices = fetch_monthly_close(t, start_date=start_date, end_date=end_date)

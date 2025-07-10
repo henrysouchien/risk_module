@@ -65,8 +65,8 @@ def parse_delta(
         # 1) full-replacement portfolio
         if "new_weights" in cfg:               
             w = {k: float(v) for k, v in cfg["new_weights"].items()}
-            s = sum(w.values()) or 1.0
-            new_w = {k: v / s for k, v in w.items()}
+            from portfolio_risk import normalize_weights
+            new_w = normalize_weights(w)
             return {}, new_w
 
         # 2) incremental tweaks

@@ -21,14 +21,20 @@ from factor_utils import (
 
 def normalize_weights(weights: Dict[str, float], normalize: bool = True) -> Dict[str, float]:
     """
-    Ensure weights sum to 1. If normalize is False, returns as-is.
+    Ensure weights sum to ±1 while preserving economic meaning (signs).
+    
+    Uses absolute value normalization to prevent sign flipping when total < 0.
+    This preserves the original investment intention (long stays long, short stays short).
+    
+    If normalize is False, returns weights as-is.
     """
     if not normalize:
         return weights
     total = sum(weights.values())
     if total == 0:
         raise ValueError("Sum of weights is zero, cannot normalize.")
-    return {t: w / total for t, w in weights.items()}
+    # Use absolute value to preserve signs and economic meaning
+    return {t: w / abs(total) for t, w in weights.items()}
 
 def compute_portfolio_returns(
     returns: pd.DataFrame,

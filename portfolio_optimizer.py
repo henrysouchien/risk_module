@@ -11,7 +11,7 @@ from copy import deepcopy
 
 import pandas as pd
 
-from portfolio_risk      import build_portfolio_view
+from portfolio_risk      import build_portfolio_view, normalize_weights
 from run_portfolio_risk  import (
     evaluate_portfolio_risk_limits,
     evaluate_portfolio_beta_limits,
@@ -70,8 +70,7 @@ def simulate_portfolio_change(
         new_w[tkr] = new_w.get(tkr, 0.0) + w
 
     # normalize
-    tot = sum(new_w.values())
-    new_w = {k: v / tot for k, v in new_w.items()}
+    new_w = normalize_weights(new_w)
 
     summary = build_portfolio_view(
         new_w, start, end, expected_returns=None, stock_factor_proxies=proxies
