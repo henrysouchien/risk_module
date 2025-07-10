@@ -209,8 +209,16 @@ def display_portfolio_config(cfg: Dict[str, Any]) -> None:
     """
     Nicely print the fields produced by load_portfolio_config().
     """
-    print("=== PORTFOLIO ALLOCATIONS BEING ANALYZED (Normalized Weights) ===")
+    from settings import PORTFOLIO_DEFAULTS
+    
     weights = cfg["weights"]
+    
+    # Simple check based on the setting
+    normalize_setting = PORTFOLIO_DEFAULTS.get("normalize_weights", True)
+    title = "=== PORTFOLIO ALLOCATIONS BEING ANALYZED (Normalized Weights) ===" if normalize_setting else "=== PORTFOLIO ALLOCATIONS BEING ANALYZED (Raw Weights) ==="
+    
+    print(title)
+    
     # Sort by weight (descending) for better readability
     sorted_weights = sorted(weights.items(), key=lambda x: abs(x[1]), reverse=True)
     
