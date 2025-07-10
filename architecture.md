@@ -365,12 +365,18 @@ The system now uses professional-grade risk-free rates from the FMP Treasury API
 **Purpose**: Portfolio-level risk decomposition and analysis
 
 **Key Functions**:
-- `normalize_weights()`: Weight standardization
+- `normalize_weights()`: Weight standardization (used only in optimization functions)
 - `compute_portfolio_returns()`: Portfolio return calculation
 - `compute_covariance_matrix()`: Risk matrix construction
 - `compute_portfolio_volatility()`: Portfolio volatility
 - `compute_risk_contributions()`: Risk attribution
 - `calculate_portfolio_performance_metrics()`: Comprehensive performance analysis
+
+**Weight Normalization Behavior**:
+- **Default**: `normalize_weights = False` in `PORTFOLIO_DEFAULTS` (raw weights represent true economic exposure)
+- **Risk Analysis**: Uses raw weights to calculate true portfolio risk exposure without leverage double-counting
+- **Optimization**: Always normalizes weights internally for mathematical stability
+- **Display**: Shows "Raw Weights" vs "Normalized Weights" based on setting
 
 ### 4. Portfolio Performance Engine (`portfolio_risk.py`)
 
@@ -533,7 +539,7 @@ The inputs layer provides a clean abstraction for all data management operations
 
 **Features**:
 - YAML configuration management
-- Portfolio weight normalization
+- Portfolio weight normalization (optional, default: False)
 - Data validation and error handling
 - Scenario generation for what-if analysis
 - Backup and versioning support
@@ -640,7 +646,8 @@ The inputs layer provides a clean abstraction for all data management operations
 ```python
 PORTFOLIO_DEFAULTS = {
     "start_date": "2019-01-31",
-    "end_date": "2025-06-27"
+    "end_date": "2025-06-27",
+    "normalize_weights": False  # Global default for portfolio weight normalization
 }
 ```
 
@@ -657,6 +664,7 @@ from settings import PORTFOLIO_DEFAULTS
 # Use defaults when not specified
 start_date = config.get('start_date', PORTFOLIO_DEFAULTS['start_date'])
 end_date = config.get('end_date', PORTFOLIO_DEFAULTS['end_date'])
+normalize_weights = config.get('normalize_weights', PORTFOLIO_DEFAULTS['normalize_weights'])
 ```
 
 ### Date Logic and Calculation Windows
@@ -683,6 +691,7 @@ from settings import PORTFOLIO_DEFAULTS
 # Used when portfolio dates not specified
 start = start or PORTFOLIO_DEFAULTS["start_date"]
 end = end or PORTFOLIO_DEFAULTS["end_date"]
+normalize_weights = normalize_weights or PORTFOLIO_DEFAULTS["normalize_weights"]
 ```
 
 **3. Independent Analysis System**:

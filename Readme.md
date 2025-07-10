@@ -310,11 +310,40 @@ Centralized default configuration for the risk module:
 ```python
 PORTFOLIO_DEFAULTS = {
     "start_date": "2019-01-31",
-    "end_date": "2025-06-27"
+    "end_date": "2025-06-27",
+    "normalize_weights": False  # Global default for portfolio weight normalization
 }
 ```
 
 These defaults are used when specific dates aren't provided in portfolio configurations.
+
+### Weight Normalization Behavior
+
+**Default**: `normalize_weights = False` (Raw weights represent true economic exposure)
+
+**Key Behavior**:
+- **Risk Analysis**: Uses raw weights to calculate true portfolio risk exposure
+- **Portfolio Display**: Shows "Raw Weights" when `False`, "Normalized Weights" when `True`
+- **Leverage Calculation**: No double-counting of leverage when using raw weights
+- **Optimization Functions**: Always normalize weights internally for mathematical stability
+
+**When to Use Each Setting**:
+- **`normalize_weights = False`** (Default): When portfolio weights represent actual dollar exposures, including leverage and short positions
+- **`normalize_weights = True`**: When portfolio weights need to be normalized to sum to 1.0 for display or analysis purposes
+
+**Example**:
+```python
+# Raw weights (default) - represents true economic exposure
+portfolio = {
+    "NVDA": 0.50,   # 50% long position
+    "SGOV": -0.08,  # 8% short position (creates leverage)
+    "SPY": 0.30     # 30% long position
+}
+# Net: 72%, Gross: 88%, Leverage: 1.22x
+
+# Risk calculations use these raw weights directly
+# No leverage double-counting in risk calculations
+```
 
 #### Date Logic and Calculation Windows
 
