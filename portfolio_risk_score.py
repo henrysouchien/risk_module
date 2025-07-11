@@ -1119,7 +1119,74 @@ def display_portfolio_risk_score(risk_score: Dict[str, Any]) -> None:
     print(f"\n{'='*60}")
 
 
-def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: str = "risk_limits.yaml"):
+def _format_risk_score_output(risk_score: Dict[str, Any], limits_analysis: Dict[str, Any], suggestions: Dict[str, Any], max_loss: float) -> str:
+    """
+    Format the risk score analysis output as a string for API responses.
+    
+    This captures the same output that would be printed to the console
+    and returns it as a formatted string.
+    """
+    import io
+    import sys
+    from contextlib import redirect_stdout
+    
+    # Capture the formatted output
+    f = io.StringIO()
+    with redirect_stdout(f):
+        # Display comprehensive disruption risk score with explanations
+        display_portfolio_risk_score(risk_score)
+        
+        # Display detailed risk limits analysis
+        print("\n" + "═" * 80)
+        print("📋 DETAILED RISK LIMITS ANALYSIS")
+        print("═" * 80)
+        
+        # Display limit violations summary
+        violations = limits_analysis["limit_violations"]
+        total_violations = sum(violations.values())
+        
+        print(f"\n📊 LIMIT VIOLATIONS SUMMARY:")
+        print(f"   Total violations: {total_violations}")
+        print(f"   Factor betas: {violations['factor_betas']}")
+        print(f"   Concentration: {violations['concentration']}")
+        print(f"   Volatility: {violations['volatility']}")
+        print(f"   Variance contributions: {violations['variance_contributions']}")
+        print(f"   Leverage: {violations['leverage']}")
+        
+        # Display detailed risk factors
+        if limits_analysis["risk_factors"]:
+            print(f"\n⚠️  KEY RISK FACTORS:")
+            for factor in limits_analysis["risk_factors"]:
+                print(f"   • {factor}")
+        
+        # Display detailed recommendations
+        if limits_analysis["recommendations"]:
+            print(f"\n💡 KEY RECOMMENDATIONS:")
+            
+            # Filter recommendations to show only beta-based ones (more intuitive for users)
+            beta_recommendations = []
+            for rec in limits_analysis["recommendations"]:
+                # Skip variance-based recommendations (they're duplicative of beta-based ones)
+                if "factor exposure (contributing" in rec.lower():
+                    continue  # Skip "Reduce X factor exposure (contributing Y% to variance)"
+                if "industry (contributing" in rec.lower():
+                    continue  # Skip "Reduce X industry (contributing Y% to variance)"
+                if "reduce market factor exposure" in rec.lower():
+                    continue  # Skip generic market factor exposure
+                
+                # Keep all other recommendations (beta-based, concentration, volatility, leverage, etc.)
+                beta_recommendations.append(rec)
+            
+            for rec in beta_recommendations:
+                print(f"   • {rec}")
+        
+        # Display suggested risk limits
+        display_suggested_risk_limits(suggestions, max_loss)
+    
+    return f.getvalue()
+
+
+def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: str = "risk_limits.yaml", *, return_data: bool = False):
     """
     Run a complete risk score analysis on a portfolio.
     
@@ -1202,12 +1269,9 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
             max_single_factor_loss=max_single_factor_loss
         )
         
-        # Display comprehensive disruption risk score with explanations
-        display_portfolio_risk_score(risk_score)
-        
-        # ═══════════════════════════════════════════════════════════════════════════
-        # DETAILED RISK LIMITS ANALYSIS
-        # ═══════════════════════════════════════════════════════════════════════════
+        # Calculate and display suggested risk limits
+        max_loss = abs(risk_config["portfolio_limits"]["max_loss"])
+        suggestions = calculate_suggested_risk_limits(summary, max_loss, risk_leverage_ratio, max_single_factor_loss, config.get("stock_factor_proxies"), config.get("start_date"), config.get("end_date"))
         
         # Perform detailed risk limits analysis
         limits_analysis = analyze_portfolio_risk_limits(
@@ -1220,55 +1284,75 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
             leverage_ratio=risk_leverage_ratio
         )
         
-        # Display detailed risk limits analysis
-        print("\n" + "═" * 80)
-        print("📋 DETAILED RISK LIMITS ANALYSIS")
-        print("═" * 80)
-        
-        # Display limit violations summary
-        violations = limits_analysis["limit_violations"]
-        total_violations = sum(violations.values())
-        
-        print(f"\n📊 LIMIT VIOLATIONS SUMMARY:")
-        print(f"   Total violations: {total_violations}")
-        print(f"   Factor betas: {violations['factor_betas']}")
-        print(f"   Concentration: {violations['concentration']}")
-        print(f"   Volatility: {violations['volatility']}")
-        print(f"   Variance contributions: {violations['variance_contributions']}")
-        print(f"   Leverage: {violations['leverage']}")
-        
-        # Display detailed risk factors
-        if limits_analysis["risk_factors"]:
-            print(f"\n⚠️  KEY RISK FACTORS:")
-            for factor in limits_analysis["risk_factors"]:
-                print(f"   • {factor}")
-        
-        # Display detailed recommendations
-        if limits_analysis["recommendations"]:
-            print(f"\n💡 KEY RECOMMENDATIONS:")
+        if return_data:
+            # API/Data mode - return structured data
+            from run_risk import make_json_safe
+            return make_json_safe({
+                "risk_score": risk_score,
+                "limits_analysis": limits_analysis,
+                "portfolio_analysis": summary,
+                "suggested_limits": suggestions,
+                "analysis_date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "portfolio_file": portfolio_yaml,
+                "risk_limits_file": risk_yaml,
+                "formatted_report": _format_risk_score_output(risk_score, limits_analysis, suggestions, max_loss)
+            })
+        else:
+            # CLI mode - print formatted output
+            # Display comprehensive disruption risk score with explanations
+            display_portfolio_risk_score(risk_score)
             
-            # Filter recommendations to show only beta-based ones (more intuitive for users)
-            # Keep variance calculations but don't show variance-based recommendations in output
-            beta_recommendations = []
-            for rec in limits_analysis["recommendations"]:
-                # Skip variance-based recommendations (they're duplicative of beta-based ones)
-                if "factor exposure (contributing" in rec.lower():
-                    continue  # Skip "Reduce X factor exposure (contributing Y% to variance)"
-                if "industry (contributing" in rec.lower():
-                    continue  # Skip "Reduce X industry (contributing Y% to variance)"
-                if "reduce market factor exposure" in rec.lower():
-                    continue  # Skip generic market factor exposure
+            # ═══════════════════════════════════════════════════════════════════════════
+            # DETAILED RISK LIMITS ANALYSIS
+            # ═══════════════════════════════════════════════════════════════════════════
+            
+            # Display detailed risk limits analysis
+            print("\n" + "═" * 80)
+            print("📋 DETAILED RISK LIMITS ANALYSIS")
+            print("═" * 80)
+            
+            # Display limit violations summary
+            violations = limits_analysis["limit_violations"]
+            total_violations = sum(violations.values())
+            
+            print(f"\n📊 LIMIT VIOLATIONS SUMMARY:")
+            print(f"   Total violations: {total_violations}")
+            print(f"   Factor betas: {violations['factor_betas']}")
+            print(f"   Concentration: {violations['concentration']}")
+            print(f"   Volatility: {violations['volatility']}")
+            print(f"   Variance contributions: {violations['variance_contributions']}")
+            print(f"   Leverage: {violations['leverage']}")
+            
+            # Display detailed risk factors
+            if limits_analysis["risk_factors"]:
+                print(f"\n⚠️  KEY RISK FACTORS:")
+                for factor in limits_analysis["risk_factors"]:
+                    print(f"   • {factor}")
+            
+            # Display detailed recommendations
+            if limits_analysis["recommendations"]:
+                print(f"\n💡 KEY RECOMMENDATIONS:")
                 
-                # Keep all other recommendations (beta-based, concentration, volatility, leverage, etc.)
-                beta_recommendations.append(rec)
+                # Filter recommendations to show only beta-based ones (more intuitive for users)
+                # Keep variance calculations but don't show variance-based recommendations in output
+                beta_recommendations = []
+                for rec in limits_analysis["recommendations"]:
+                    # Skip variance-based recommendations (they're duplicative of beta-based ones)
+                    if "factor exposure (contributing" in rec.lower():
+                        continue  # Skip "Reduce X factor exposure (contributing Y% to variance)"
+                    if "industry (contributing" in rec.lower():
+                        continue  # Skip "Reduce X industry (contributing Y% to variance)"
+                    if "reduce market factor exposure" in rec.lower():
+                        continue  # Skip generic market factor exposure
+                    
+                    # Keep all other recommendations (beta-based, concentration, volatility, leverage, etc.)
+                    beta_recommendations.append(rec)
+                
+                for rec in beta_recommendations:
+                    print(f"   • {rec}")
             
-            for rec in beta_recommendations:
-                print(f"   • {rec}")
-        
-        # Calculate and display suggested risk limits
-        max_loss = abs(risk_config["portfolio_limits"]["max_loss"])
-        suggestions = calculate_suggested_risk_limits(summary, max_loss, risk_leverage_ratio, max_single_factor_loss, config.get("stock_factor_proxies"), config.get("start_date"), config.get("end_date"))
-        display_suggested_risk_limits(suggestions, max_loss)
+            # Display suggested risk limits
+            display_suggested_risk_limits(suggestions, max_loss)
         
         # Return comprehensive results
         return {
