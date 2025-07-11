@@ -47,6 +47,11 @@ from gpt_helpers import (
 )
 from helpers_display import format_stock_metrics
 
+# ============================================================================
+# EXTRACTION MARKER: utils/serialization.py
+# Extract lines 50-93: make_json_safe() function
+# This is a utility function used across multiple modules
+# ============================================================================
 def make_json_safe(obj):
     """
     Recursively convert any object to JSON-serializable format.
@@ -90,6 +95,11 @@ def make_json_safe(obj):
         # For any other object, try to convert to string
         return str(obj)
 
+# ============================================================================
+# EXTRACTION MARKER: core/interpretation.py
+# Extract lines 93-149: run_and_interpret() function
+# This handles AI interpretation of portfolio analysis
+# ============================================================================
 def run_and_interpret(portfolio_yaml: str, *, return_data: bool = False):
     """
     Convenience wrapper:
@@ -146,6 +156,11 @@ def run_and_interpret(portfolio_yaml: str, *, return_data: bool = False):
         
         return summary_txt  # Return GPT summary text (existing behavior)
 
+# ============================================================================
+# EXTRACTION MARKER: core/interpretation.py
+# Extract lines 149-206: interpret_portfolio_output() function
+# This handles AI interpretation of structured portfolio output
+# ============================================================================
 def interpret_portfolio_output(portfolio_output: Dict[str, Any], *, 
                               portfolio_name: Optional[str] = None,
                               return_data: bool = False):
@@ -203,6 +218,11 @@ def interpret_portfolio_output(portfolio_output: Dict[str, Any], *,
         
         return summary_txt  # Return GPT summary text (existing behavior)
 
+# ============================================================================
+# EXTRACTION MARKER: utils/serialization.py
+# Extract lines 206-241: _format_portfolio_output_as_text() function
+# This formats structured data back to text for AI interpretation
+# ============================================================================
 def _format_portfolio_output_as_text(portfolio_output: Dict[str, Any]) -> str:
     """
     Convert structured portfolio output back to formatted text.
@@ -229,7 +249,7 @@ def _format_portfolio_output_as_text(portfolio_output: Dict[str, Any]) -> str:
     for check in risk_analysis.get("risk_checks", []):
         status = "PASS" if check.get("Pass", False) else "FAIL"
         buf.write(f"{check.get('check_name', 'Unknown')}: {status}\n")
-    
+
     # Add beta checks table
     buf.write("\n=== Beta Exposure Checks ===\n")
     for check in beta_analysis.get("beta_checks", []):
@@ -238,6 +258,12 @@ def _format_portfolio_output_as_text(portfolio_output: Dict[str, Any]) -> str:
     
     return buf.getvalue()
 
+# ============================================================================
+# EXTRACTION MARKER: core/portfolio_analysis.py
+# Extract lines 241-423: run_portfolio() function - CORE BUSINESS LOGIC
+# This is the main portfolio analysis function that should be extracted
+# Keep the dual-mode wrapper here, extract the business logic to core
+# ============================================================================
 def run_portfolio(filepath: str, *, return_data: bool = False):
     """
     High-level "one-click" entry-point for a full portfolio risk run.
@@ -307,6 +333,7 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
     True
     """
     
+    # ─── BUSINESS LOGIC START: Extract to core/portfolio_analysis.py ─────────
     # ─── 1. Load YAML Inputs ─────────────────────────────────
     config = load_portfolio_config(filepath)
     
@@ -348,6 +375,7 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
         proxy_betas=summary["industry_variance"].get("per_industry_group_beta"),
         max_proxy_betas=max_betas_by_proxy
     )
+    # ─── BUSINESS LOGIC END: Extract to core/portfolio_analysis.py ─────────
 
     # ─── 5. Dual-Mode Logic ─────────────────────────────────
     if return_data:
@@ -420,6 +448,11 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
             status = "→ PASS" if row["pass"] else "→ FAIL"
             print(f"{factor:<20} β = {row['portfolio_beta']:+.2f}  ≤ {row['max_allowed_beta']:.2f}  {status}")
 
+# ============================================================================
+# EXTRACTION MARKER: core/scenarios.py
+# Extract lines 423-592: run_what_if() function - WHAT-IF SCENARIO LOGIC
+# This handles what-if scenario analysis
+# ============================================================================
 def run_what_if(
     filepath: str, 
     scenario_yaml: Optional[str] = None, 
@@ -589,6 +622,11 @@ def run_what_if(
             cmp_beta=cmp_beta,
         )
 
+# ============================================================================
+# EXTRACTION MARKER: core/optimization.py
+# Extract lines 635-737: run_min_variance() function - MIN VARIANCE OPTIMIZATION
+# This handles minimum variance portfolio optimization
+# ============================================================================
 def run_min_variance(filepath: str, *, return_data: bool = False):
     """
     Run the minimum-variance optimiser under current risk limits.
@@ -691,6 +729,11 @@ def run_min_variance(filepath: str, *, return_data: bool = False):
         # CLI MODE: Print formatted output
         print_min_var_report(weights=w, risk_tbl=r, beta_tbl=b)
 
+# ============================================================================
+# EXTRACTION MARKER: core/optimization.py
+# Extract lines 737-860: run_max_return() function - MAX RETURN OPTIMIZATION
+# This handles maximum return portfolio optimization
+# ============================================================================
 def run_max_return(filepath: str, *, return_data: bool = False):
     """
     Solve for the highest-return portfolio that still passes all
@@ -814,6 +857,11 @@ def run_max_return(filepath: str, *, return_data: bool = False):
         # CLI MODE: Print formatted output
         print_max_return_report(weights=w, risk_tbl=r, df_factors=f_b, df_proxies=p_b)
 
+# ============================================================================
+# EXTRACTION MARKER: core/stock_analysis.py
+# Extract lines 860-991: run_stock() function - STOCK ANALYSIS
+# This handles individual stock risk analysis
+# ============================================================================
 def run_stock(
     ticker: str,
     start: Optional[str] = None,
@@ -945,6 +993,11 @@ def run_stock(
             format_stock_metrics(result["vol_metrics"], "Volatility Metrics")
             format_stock_metrics(result["risk_metrics"], "Market Regression (SPY)")
 
+# ============================================================================
+# EXTRACTION MARKER: core/performance.py
+# Extract lines 991-END: run_portfolio_performance() function - PERFORMANCE ANALYSIS
+# This handles portfolio performance calculation and analysis
+# ============================================================================
 def run_portfolio_performance(filepath: str, *, return_data: bool = False):
     """
     Calculate and display comprehensive portfolio performance metrics.
