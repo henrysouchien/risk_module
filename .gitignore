@@ -17,9 +17,8 @@ services/
 utils/
 inputs/
 frontend/
-INTERFACE_ARCHITECTURE.md
-INTERFACE_README.md
-test_all_interfaces.py
+core/
+tests/
 
 # =============================================================================
 # PYTHON SPECIFIC
