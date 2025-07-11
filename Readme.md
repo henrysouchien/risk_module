@@ -16,6 +16,29 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 - **YAML Configuration**: Easy portfolio setup and risk limit management
 - **Centralized Settings**: Consistent analysis across different portfolios
 
+## 🌐 Current API Status
+
+**✅ Complete API Coverage**: All major analysis functions available via REST API with dual output format:
+
+| Analysis Type | CLI Command | API Endpoint | Output Format |
+|---------------|-------------|--------------|---------------|
+| **Portfolio Risk** | `run_risk.py --portfolio` | `POST /api/analyze` | Structured data + formatted report |
+| **Risk Score** | `portfolio_risk_score.py` | `POST /api/risk-score` | Structured data + formatted report |
+| **Performance** | `run_risk.py --performance` | `POST /api/performance` | Structured data + formatted report |
+| **AI Chat** | N/A | `POST /api/claude_chat` | Interactive conversation |
+
+**Testing Commands:**
+```bash
+# Start API server
+python3 app.py
+
+# Test all endpoints (shows both structured data + formatted reports)
+python3 show_api_output.py analyze      # Complete portfolio analysis
+python3 show_api_output.py risk-score   # Risk score analysis
+python3 show_api_output.py performance  # Performance metrics
+python3 show_api_output.py health       # API health check
+```
+
 ## 🌐 Interface Layer
 
 For web interface, REST API, and Claude AI chat integration, see:
@@ -755,25 +778,36 @@ The risk module includes a production-ready Flask web application (3,000+ lines)
 - **Paid**: Full access (30 analyses/day) + priority support
 
 **API Endpoints:**
-- `POST /api/analyze` - Portfolio risk analysis
-- `POST /api/risk-score` - Risk score calculation (0-100)
-- `POST /api/portfolio-analysis` - Comprehensive portfolio analysis
-- `POST /api/claude_chat` - AI assistant interaction
-- `GET /plaid/holdings` - Get Plaid portfolio data
-- `GET /api/health` - System health check
+
+| Endpoint | Returns | Purpose |
+|----------|---------|---------|
+| `POST /api/analyze` | Structured data + formatted report | Complete portfolio risk analysis |
+| `POST /api/risk-score` | Structured data + formatted report | Risk score calculation (0-100) |
+| `POST /api/performance` | Structured data + formatted report | Performance metrics (returns, Sharpe, alpha, beta) |
+| `POST /api/portfolio-analysis` | GPT interpretation + analysis | AI-powered portfolio analysis |
+| `POST /api/claude_chat` | AI conversation | Interactive risk analysis assistant |
+| `GET /plaid/holdings` | Portfolio data | Import from brokerage accounts |
+| `GET /api/health` | System status | API health check |
+
+**Key Features:**
+- **Dual Output Format**: Every analysis endpoint returns both structured JSON data AND human-readable formatted reports
+- **Complete Parity**: API provides same analysis as CLI with identical output
+- **Real-time Analysis**: Fresh analysis with current market data
 
 **Usage:**
 ```bash
 # Start the web server
 python app.py
 
-# Access via browser
-http://localhost:5000
+# Test API endpoints with structured data + formatted reports
+python3 show_api_output.py analyze        # Complete portfolio analysis
+python3 show_api_output.py risk-score     # Risk score analysis  
+python3 show_api_output.py performance    # Performance metrics
 
 # API usage example
-curl -X POST http://localhost:5000/api/analyze?key=your_api_key \
+curl -X POST http://localhost:5001/api/performance?key=paid_key_789 \
   -H "Content-Type: application/json" \
-  -d '{"portfolio": {"AAPL": 0.6, "MSFT": 0.4}}'
+  -d '{}'
 ```
 
 ## 🔗 Additional Integrations

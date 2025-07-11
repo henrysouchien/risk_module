@@ -903,19 +903,35 @@ The web interface is organized into 5 specialized route modules for clean separa
 #### Core API Routes (`routes/api.py`)
 **Primary risk analysis endpoints**
 
-| Endpoint | Method | Purpose | Parameters |
-|----------|--------|---------|------------|
-| `/api/analyze` | POST | Portfolio risk analysis | `yaml_content`, `portfolio_name` |
-| `/api/risk-score` | POST | Risk scoring analysis | `yaml_content`, `risk_limits` |
-| `/api/performance` | POST | Performance metrics | `yaml_content`, `benchmark` |
-| `/api/what-if` | POST | Scenario analysis | `yaml_content`, `scenario` |
-| `/api/optimize` | POST | Portfolio optimization | `yaml_content`, `objective` |
+| Endpoint | Method | Purpose | Returns |
+|----------|--------|---------|---------|
+| `/api/analyze` | POST | Portfolio risk analysis | Structured data + CLI-style formatted report |
+| `/api/risk-score` | POST | Risk scoring analysis | Structured data + CLI-style formatted report |
+| `/api/performance` | POST | Performance metrics | Structured data + CLI-style formatted report |
+| `/api/what-if` | POST | Scenario analysis | Structured data + raw analysis output |
+| `/api/optimize` | POST | Portfolio optimization | Structured data + optimization results |
+
+**Response Format**:
+```json
+{
+  "success": true,
+  "performance_metrics": {
+    "returns": {"annualized_return": 25.98, ...},
+    "risk_metrics": {"volatility": 19.80, ...},
+    "risk_adjusted_returns": {"sharpe_ratio": 1.18, ...},
+    ...
+  },
+  "formatted_report": "📊 PORTFOLIO PERFORMANCE ANALYSIS\n============...",
+  "summary": {"key_metrics": "..."},
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
 
 **Features**:
+- **Dual Output Format**: Both structured JSON data AND human-readable formatted reports
 - Rate limiting by user tier
 - Input validation and sanitization
 - Comprehensive error handling
-- JSON response formatting
 - Export functionality for analysis results
 
 #### Claude AI Chat Routes (`routes/claude.py`)
@@ -990,17 +1006,37 @@ The web interface is organized into 5 specialized route modules for clean separa
 
 ### API Response Format
 
-All API endpoints follow a consistent response format:
+**Service Layer Endpoints** provide dual output format:
 
 ```json
 {
-  "status": "success|error",
-  "data": {
-    // Response data
+  "success": true,
+  "risk_results": {
+    // Structured data with all metrics
+    "volatility_annual": 0.198,
+    "factor_exposures": {...},
+    // ... comprehensive structured data
   },
-  "message": "Human-readable message",
-  "timestamp": "ISO timestamp",
-  "request_id": "unique-request-id"
+  "formatted_report": "📊 PORTFOLIO RISK ANALYSIS\n============...",
+  "summary": {
+    // Key metrics summary
+    "overall_risk": "Medium",
+    "key_recommendations": [...]
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+**Direct Endpoints** return raw function output:
+
+```json
+{
+  "success": true,
+  "data": {
+    // Raw function output
+  },
+  "endpoint": "direct/portfolio",
+  "timestamp": "2024-01-01T12:00:00Z"
 }
 ```
 
