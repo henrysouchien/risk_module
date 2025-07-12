@@ -18,7 +18,12 @@ This document provides a comprehensive overview of the Risk Module's architectur
 
 ## 🎯 System Overview
 
-The Risk Module is a modular, stateless Python framework designed for comprehensive portfolio and single-stock risk analysis. It provides multi-factor regression diagnostics, risk decomposition, and portfolio optimization capabilities through a layered architecture that promotes maintainability, testability, and extensibility.
+The Risk Module is a modular, stateless Python framework designed for comprehensive portfolio and single-stock risk analysis. It provides multi-factor regression diagnostics, risk decomposition, and portfolio optimization capabilities through a **clean 3-layer architecture** that promotes maintainability, testability, and extensibility.
+
+### Architecture Transformation
+
+**BEFORE**: Monolithic `run_risk.py` (1217 lines) mixing CLI, business logic, and formatting
+**AFTER**: Clean layered architecture with extracted business logic and single source of truth
 
 ### Data Quality Assurance
 
@@ -28,11 +33,11 @@ The system includes robust data quality validation to prevent unstable factor ca
 
 ### Core Design Principles
 
-- **Modularity**: Each component has a single responsibility and clear interfaces
-- **Statelessness**: Functions are pure and don't maintain internal state
-- **Caching**: Intelligent caching at multiple levels for performance
-- **Configuration-Driven**: YAML-based configuration for flexibility
-- **Extensible**: Easy to add new factors, risk metrics, and data sources
+- **Single Source of Truth**: All interfaces (CLI, API, AI) use the same core business logic
+- **Dual-Mode Architecture**: Every function supports both CLI and API modes seamlessly
+- **Clean Separation**: Routes handle UI, Core handles business logic, Data handles persistence
+- **100% Backward Compatibility**: Existing code works identically
+- **Enterprise-Ready**: Professional architecture suitable for production deployment
 
 ### Interface Layer
 
@@ -42,154 +47,183 @@ For web interface, REST API, and Claude AI chat integration, see:
 
 ## 🏗️ Architecture Layers
 
-The system follows a sophisticated **5-layer enterprise architecture** with clear separation of concerns and comprehensive interface coverage:
+The system follows a **clean 3-layer architecture** with clear separation of concerns:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    LAYER 5: FRONTEND                         │
+│                    LAYER 1: ROUTES LAYER                     │
+│                    (User Interface)                          │
+├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │ frontend/src/   │  │ React SPA       │  │ Interface    │ │
-│  │ App.js          │  │ (1,477 lines)   │  │ Alignment    │ │
-│  │ (UI Components) │  │                 │  │ Tools        │ │
+│  │ CLI Interface   │  │ API Interface   │  │ AI Interface │ │
+│  │ run_risk.py     │  │ routes/api.py   │  │ routes/      │ │
+│  │ (CLI Commands)  │  │ (REST API)      │  │ claude.py    │ │
+│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
+│                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
+│  │ Services Layer  │  │ Web Frontend    │  │ Admin Tools  │ │
+│  │ services/       │  │ frontend/       │  │ routes/      │ │
+│  │ (Orchestration) │  │ (React SPA)     │  │ admin.py     │ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│                    LAYER 4: WEB INTERFACE                    │
+│                    LAYER 2: CORE LAYER                      │
+│                 (Pure Business Logic)                       │
+├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │ routes/api.py   │  │ routes/claude.py│  │ routes/      │ │
-│  │ (REST API)      │  │ (AI Chat)       │  │ plaid.py     │ │
-│  │                 │  │                 │  │ auth.py      │ │
-│  │                 │  │                 │  │ admin.py     │ │
+│  │ Portfolio       │  │ Stock Analysis  │  │ Optimization │ │
+│  │ Analysis        │  │ core/stock_     │  │ core/        │ │
+│  │ core/portfolio_ │  │ analysis.py     │  │ optimization.│ │
+│  │ analysis.py     │  │                 │  │ py           │ │
+│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
+│                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
+│  │ Scenario        │  │ Performance     │  │ Interpretation│ │
+│  │ Analysis        │  │ Analysis        │  │ core/        │ │
+│  │ core/scenario_  │  │ core/performance│  │ interpretation│ │
+│  │ analysis.py     │  │ _analysis.py    │  │ .py          │ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────┐
-│                    LAYER 3: AI SERVICES                      │
+│                    LAYER 3: DATA LAYER                      │
+│                 (Data Access & Storage)                     │
+├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │ services/claude/│  │ services/       │  │ 14 Claude    │ │
-│  │ function_       │  │ portfolio/      │  │ Functions    │ │
-│  │ executor.py     │  │ context_service │  │ (618 lines)  │ │
-│  │ (AI Functions)  │  │ (Portfolio Cache│  │              │ │
+│  │ Risk Engine     │  │ Portfolio       │  │ Data Loading │ │
+│  │ portfolio_risk. │  │ Optimization    │  │ data_loader. │ │
+│  │ py              │  │ portfolio_      │  │ py           │ │
+│  │ (Factor Models) │  │ optimizer.py    │  │ (FMP API)    │ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────┐
-│                    LAYER 2: DATA MANAGEMENT                  │
+│                                                             │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │ inputs/         │  │ inputs/         │  │ inputs/      │ │
-│  │ portfolio_      │  │ risk_config.py  │  │ returns_     │ │
-│  │ manager.py      │  │ (Risk Limits)   │  │ calculator.py│ │
-│  │ (Portfolio Ops) │  │                 │  │ inputs/      │ │
-│  │                 │  │                 │  │ file_manager │ │
-│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────┐
-│                    LAYER 1: CORE RISK ENGINE                 │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │ portfolio_risk. │  │ portfolio_risk_ │  │ factor_utils.│ │
-│  │ py              │  │ score.py        │  │ py           │ │
-│  │ (Risk Analysis) │  │ (Risk Scoring)  │  │ (Factor Calc)│ │
-│  │                 │  │                 │  │              │ │
-│  │ portfolio_      │  │ risk_summary.py │  │ data_loader. │ │
-│  │ optimizer.py    │  │ (Stock Profile) │  │ py           │ │
-│  │ (Optimization)  │  │                 │  │ (Data Access)│ │
+│  │ Stock Profiler  │  │ Factor Utils    │  │ Utilities    │ │
+│  │ risk_summary.py │  │ factor_utils.py │  │ utils/       │ │
+│  │ (Stock Analysis)│  │ (Math/Stats)    │  │ serialization│ │
+│  │                 │  │                 │  │ .py          │ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Interface Coverage Analysis
+### Key Architectural Benefits
 
-The system provides **4 distinct interfaces** with varying levels of functional coverage:
+1. **Single Source of Truth**: All interfaces call the same core business logic
+2. **Dual-Mode Support**: Every function works in both CLI and API modes
+3. **Clean Separation**: Routes handle UI, Core handles logic, Data handles persistence
+4. **Perfect Compatibility**: Existing code works identically
+5. **Enterprise Architecture**: Professional structure suitable for production
 
-| Interface | Coverage | Key Components | Status |
-|-----------|----------|----------------|--------|
-| **CLI** | 21% | `run_risk.py`, `portfolio_risk_score.py`, `proxy_builder.py` | ⚠️ Missing 9 functions |
-| **API** | 85% | `routes/api.py`, `routes/claude.py`, `routes/plaid.py` | ✅ Comprehensive |
-| **Claude** | 36% | `services/claude/function_executor.py` (14 functions) | ✅ AI-powered |
-| **Inputs** | 100% | `inputs/portfolio_manager.py`, `inputs/risk_config.py` | ✅ Foundation layer |
+## 🔄 Data Flow Architecture
 
-**Priority Gap**: Adding 9 missing CLI functions would increase overall alignment from 21% to 44%.
+### User Request Flow
+```
+1. User Input
+   ├── CLI: "python run_risk.py --portfolio portfolio.yaml"
+   ├── API: "POST /api/analyze"
+   └── AI: "Analyze my portfolio risk"
+   
+2. Routes Layer
+   ├── run_portfolio() in run_risk.py
+   ├── api_analyze_portfolio() in routes/api.py
+   └── claude_chat() in routes/claude.py
+   
+3. Core Layer (Business Logic)
+   ├── analyze_portfolio() in core/portfolio_analysis.py
+   ├── analyze_scenario() in core/scenario_analysis.py
+   └── analyze_stock() in core/stock_analysis.py
+   
+4. Data Layer
+   ├── build_portfolio_view() in portfolio_risk.py
+   ├── run_what_if_scenario() in portfolio_optimizer.py
+   └── get_stock_risk_profile() in risk_summary.py
+   
+5. Response
+   ├── CLI: Formatted console output
+   ├── API: JSON structured data
+   └── AI: Natural language interpretation
+```
+
+### Dual-Mode Architecture Pattern
+
+Every function in the system supports both CLI and API modes:
+
+```python
+def run_portfolio(filepath: str, *, return_data: bool = False):
+    """
+    Dual-mode portfolio analysis function.
+    
+    CLI Mode (return_data=False):
+    - Prints formatted output to console
+    - Returns simple values for CLI use
+    
+    API Mode (return_data=True):
+    - Returns structured JSON-serializable data
+    - Suitable for API consumption
+    """
+    # Call extracted core business logic
+    analysis_result = analyze_portfolio(filepath)
+    
+    # Dual-mode response handling
+    if return_data:
+        # API Mode: Return structured data
+        return analysis_result
+    else:
+        # CLI Mode: Print formatted output
+        print_portfolio_summary(analysis_result)
+        return None
+```
 
 ## 📂 File Structure
 
-### Complete Enterprise Directory Structure
+### Complete Architecture Directory Structure
 
 ```
 risk_module/
 ├── 📄 Readme.md                    # Main project documentation
 ├── 📄 architecture.md              # Technical architecture (this file)
 ├── ⚙️ settings.py                  # Default configuration settings
-├── 🔧 app.py                       # Flask web application (13KB)
+├── 🔧 app.py                       # Flask web application
 ├── 🔒 update_secrets.sh            # Secrets synchronization script
 ├── 📋 requirements.txt             # Python dependencies
 ├── 📜 LICENSE                      # MIT License
 │
-├── 📊 Core Risk Engine (Layer 1)
-│   ├── 💼 portfolio_risk.py           # Portfolio risk calculations (32KB)
-│   ├── 📈 portfolio_risk_score.py     # Risk scoring system (53KB)
-│   ├── 📊 factor_utils.py             # Factor analysis utilities (8KB)
-│   ├── 📋 risk_summary.py             # Single-stock risk profiling (4KB)
-│   ├── ⚡ portfolio_optimizer.py       # Portfolio optimization (36KB)
-│   ├── 🔌 data_loader.py              # Data fetching and caching (8KB)
-│   ├── 🤖 gpt_helpers.py              # GPT integration (4KB)
-│   ├── 🔧 proxy_builder.py            # Factor proxy generation (19KB)
-│   ├── 🏦 plaid_loader.py             # Plaid brokerage integration (29KB)
-│   └── 🛠️ risk_helpers.py             # Risk calculation helpers (8KB)
+├── 📊 LAYER 1: ROUTES LAYER (User Interface)
+│   ├── 🖥️ run_risk.py                  # CLI interface (832 lines)
+│   ├── 📁 routes/                      # API interfaces
+│   │   ├── api.py                      # REST API endpoints (669 lines)
+│   │   ├── claude.py                   # Claude AI chat interface (83 lines)
+│   │   ├── plaid.py                    # Plaid integration (254 lines)
+│   │   ├── auth.py                     # Authentication (124 lines)
+│   │   └── admin.py                    # Admin interface (134 lines)
+│   ├── 📁 services/                    # Service orchestration
+│   │   ├── portfolio_service.py        # Portfolio analysis service (382 lines)
+│   │   ├── stock_service.py            # Stock analysis service (130 lines)
+│   │   ├── scenario_service.py         # Scenario analysis service (270 lines)
+│   │   └── optimization_service.py     # Optimization service (194 lines)
+│   └── 📁 frontend/                    # Web frontend
+│       └── src/App.js                  # React SPA (1,477 lines)
 │
-├── 📁 inputs/ (Layer 2: Data Management)
-│   ├── portfolio_manager.py           # Portfolio operations
-│   ├── risk_config.py                 # Risk limits management
-│   ├── returns_calculator.py          # Returns estimation
-│   └── file_manager.py                # File operations
+├── 📊 LAYER 2: CORE LAYER (Pure Business Logic)
+│   ├── 📁 core/                        # Extracted business logic
+│   │   ├── portfolio_analysis.py       # Portfolio analysis logic (116 lines)
+│   │   ├── stock_analysis.py           # Stock analysis logic (133 lines)
+│   │   ├── scenario_analysis.py        # Scenario analysis logic (157 lines)
+│   │   ├── optimization.py             # Optimization logic (180 lines)
+│   │   ├── performance_analysis.py     # Performance analysis logic (115 lines)
+│   │   └── interpretation.py           # AI interpretation logic (109 lines)
+│   └── 📁 utils/                       # Utility functions
+│       └── serialization.py            # JSON serialization utilities
 │
-├── 📁 services/ (Layer 3: AI Services)
-│   ├── claude/
-│   │   ├── function_executor.py       # 14 Claude functions (618 lines)
-│   │   ├── chat_service.py            # Claude conversation orchestration
-│   │   └── claude_utils.py            # Claude utilities
-│   └── portfolio/
-│       ├── context_service.py         # Portfolio caching (374 lines)
-│       └── portfolio_utils.py         # Portfolio utilities
-│
-├── 📁 routes/ (Layer 4: Web Interface)
-│   ├── api.py                         # Core API endpoints
-│   ├── claude.py                      # Claude chat endpoint
-│   ├── plaid.py                       # Plaid integration endpoints
-│   ├── auth.py                        # Authentication endpoints
-│   └── admin.py                       # Admin endpoints
-│
-├── 📁 frontend/ (Layer 5: Frontend)
-│   ├── src/
-│   │   ├── App.js                     # React SPA (1,477 lines)
-│   │   ├── components/                # React components
-│   │   └── utils/                     # Frontend utilities
-│   └── public/                        # Static assets
-│
-├── 📁 docs/ (Documentation)
-│   ├── interfaces/
-│   │   ├── alignment_table.md         # Interface alignment mapping
-│   │   ├── INTERFACE_README.md        # Interface documentation
-│   │   └── INTERFACE_ARCHITECTURE.md  # Interface architecture
-│   ├── planning/
-│   │   ├── COMPLETE_IMPLEMENTATION_PLAN.md
-│   │   ├── MIGRATION_CHECKLIST.md
-│   │   ├── REFACTORING_PLAN.md
-│   │   ├── DATA_OBJECTS_DESIGN.md
-│   │   └── ARCHITECTURE_DECISIONS.md
-│   ├── API_REFERENCE.md               # API documentation
-│   ├── WEB_APP.md                     # Web application guide
-│   └── README.md                      # Documentation index
-│
-├── 📁 tools/ (Utilities)
-│   ├── view_alignment.py              # Terminal alignment viewer
-│   ├── check_dependencies.py          # Dependency impact analysis
-│   └── test_all_interfaces.py         # Interface testing suite
-│
-├── 📁 utils/ (Utilities)
-│   ├── helpers_display.py             # Display utilities (5KB)
-│   ├── helpers_input.py               # Input processing utilities (2KB)
-│   └── various utility modules...
-│
-├── 📁 templates/ (Web Templates)
-│   └── flask templates for web UI
+├── 📊 LAYER 3: DATA LAYER (Data Access & Storage)
+│   ├── 💼 portfolio_risk.py            # Portfolio risk calculations (32KB)
+│   ├── 📈 portfolio_risk_score.py      # Risk scoring system (53KB)
+│   ├── 📊 factor_utils.py              # Factor analysis utilities (8KB)
+│   ├── 📋 risk_summary.py              # Single-stock risk profiling (4KB)
+│   ├── ⚡ portfolio_optimizer.py        # Portfolio optimization (36KB)
+│   ├── 🔌 data_loader.py               # Data fetching and caching (8KB)
+│   ├── 🤖 gpt_helpers.py               # GPT integration (4KB)
+│   ├── 🔧 proxy_builder.py             # Factor proxy generation (19KB)
+│   ├── 🏦 plaid_loader.py              # Plaid brokerage integration (29KB)
+│   └── 🛠️ risk_helpers.py              # Risk calculation helpers (8KB)
 │
 ├── 📁 Configuration Files
 │   ├── ⚙️ portfolio.yaml              # Portfolio configuration
@@ -197,118 +231,124 @@ risk_module/
 │   ├── 🗺️ cash_map.yaml               # Cash position mapping
 │   ├── 🏭 industry_to_etf.yaml        # Industry classification mapping
 │   ├── 📊 exchange_etf_proxies.yaml   # Exchange-specific proxies
-│   ├── 🔧 what_if_portfolio.yaml      # What-if scenarios
-│   └── 🔑 .env                        # Environment variables
+│   └── 🔧 what_if_portfolio.yaml      # What-if scenarios
 │
-├── 📁 Entry Points & Runners
-│   ├── 🎯 run_risk.py                 # Main CLI interface (20KB)
-│   ├── 🚀 run_portfolio_risk.py       # Portfolio analysis runner (24KB)
-│   └── 🤖 run_risk_summary_to_gpt_dev.py # GPT interpretation runner
+├── 📁 docs/ (Documentation)
+│   ├── interfaces/
+│   │   ├── INTERFACE_README.md         # Interface documentation
+│   │   └── INTERFACE_ARCHITECTURE.md   # Interface architecture
+│   ├── API_REFERENCE.md               # API documentation
+│   ├── WEB_APP.md                     # Web application guide
+│   └── README.md                      # Documentation index
 │
-├── 📁 Data & Cache Directories
-│   ├── 📁 cache_prices/               # Cached price data (gitignored)
-│   ├── 📁 exports/                    # Analysis export files
-│   ├── 📁 error_logs/                 # System error logs
-│   └── 📁 Archive/                    # Historical files
+├── 📁 tests/ (Testing)
+│   ├── test_service_layer.py          # Service layer tests
+│   ├── test_dual_mode.py              # Dual-mode functionality tests
+│   └── test_core_extraction.py        # Core business logic tests
 │
-└── 📁 Development & Testing
-    ├── Various .ipynb files           # Jupyter notebooks for development
-    ├── test_*.py files                # Testing scripts
-    └── *_dev.py files                 # Development versions
+└── 📁 tools/ (Utilities)
+    ├── view_alignment.py              # Terminal alignment viewer
+    ├── check_dependencies.py          # Dependency impact analysis
+    └── test_all_interfaces.py         # Interface testing suite
 ```
 
-### Key Directory Purposes
+## 🎯 Core Business Logic Extraction
 
-| Directory | Purpose | Layer | Key Files |
-|-----------|---------|-------|-----------|
-| **inputs/** | Data management operations | 2 | `portfolio_manager.py`, `risk_config.py` |
-| **services/** | AI services and orchestration | 3 | `function_executor.py`, `context_service.py` |
-| **routes/** | Web API endpoints | 4 | `api.py`, `claude.py`, `plaid.py` |
-| **frontend/** | React user interface | 5 | `App.js`, components |
-| **docs/** | Comprehensive documentation | - | Interface docs, planning docs |
-| **tools/** | Development utilities | - | Alignment tools, testing scripts |
-| **utils/** | Helper functions | - | Display, input processing |
-
-## 🔄 Data Flow
-
-### Portfolio Analysis Flow
-
-```
-1. Configuration Loading
-   portfolio.yaml → helpers_input.py → standardized portfolio data
-
-2. Data Retrieval
-   ticker list → data_loader.py → cached/API price data
-
-3. Data Quality Validation
-   peer groups → proxy_builder.py → filtered valid peers
-
-4. Factor Analysis
-   price data → factor_utils.py → factor returns and betas
-
-5. Risk Calculation
-   factor data + weights → portfolio_risk.py → risk metrics
-
-6. Reporting
-   risk metrics → helpers_display.py → formatted output
+### Before: Monolithic Structure
+```python
+# run_risk.py (1217 lines)
+def run_portfolio(filepath):
+    # Load configuration (20 lines)
+    # Build portfolio view (30 lines)
+    # Calculate risk metrics (40 lines)
+    # Check limits (25 lines)
+    # Format output (30 lines)
+    # Print results (20 lines)
+    # Handle dual-mode (10 lines)
 ```
 
-### Data Quality Validation Flow
+### After: Clean Layered Structure
+```python
+# run_risk.py (Routes Layer)
+def run_portfolio(filepath, *, return_data=False):
+    # Call extracted core business logic
+    analysis_result = analyze_portfolio(filepath)
+    
+    # Dual-mode response handling
+    if return_data:
+        return analysis_result  # API mode
+    else:
+        print_portfolio_summary(analysis_result)  # CLI mode
+        return None
 
-```
-1. Peer Generation
-   GPT → generate_subindustry_peers() → candidate peer list
-
-2. Individual Validation
-   candidate peers → filter_valid_tickers() → peers with ≥3 observations
-
-3. Peer Group Validation
-   valid peers → filter_valid_tickers(target_ticker) → peers with ≥ target observations
-
-4. Factor Calculation
-   validated peers → fetch_peer_median_monthly_returns() → stable factor data
-```
-
-### Single Stock Analysis Flow
-
-```
-1. Stock Configuration
-   stock + factor proxies → risk_summary.py → factor setup
-
-2. Data Collection
-   stock + proxy tickers → data_loader.py → price series
-
-3. Regression Analysis
-   price data → factor_utils.py → multi-factor regression
-
-4. Risk Profiling
-   regression results → risk_summary.py → risk profile
+# core/portfolio_analysis.py (Core Layer)
+def analyze_portfolio(filepath):
+    # Pure business logic - no UI concerns
+    # 1. Load configuration
+    # 2. Build portfolio view
+    # 3. Calculate risk metrics
+    # 4. Check limits
+    # 5. Return structured data
+    return structured_results
 ```
 
-### Portfolio Performance Analysis Flow
+## 🔄 Technical Implementation Details
 
+### Dual-Mode Pattern Implementation
+
+Every function maintains dual-mode behavior:
+
+```python
+def run_portfolio(filepath: str, *, return_data: bool = False):
+    """
+    Dual-mode portfolio analysis function.
+    
+    Parameters
+    ----------
+    filepath : str
+        Path to portfolio YAML file
+    return_data : bool, default False
+        If True, returns structured data instead of printing
+        If False, prints formatted output to stdout
+    
+    Returns
+    -------
+    None or Dict[str, Any]
+        If return_data=False: Returns None, prints formatted output
+        If return_data=True: Returns structured data dictionary
+    """
+    # Business logic: Call extracted core function
+    analysis_result = analyze_portfolio(filepath)
+    
+    # Dual-mode logic
+    if return_data:
+        # API Mode: Return structured data
+        return analysis_result
+    else:
+        # CLI Mode: Print formatted output
+        print_portfolio_summary(analysis_result)
+        return None
 ```
-1. Configuration Loading
-   portfolio.yaml → run_portfolio_performance() → portfolio weights + dates
 
-2. Data Collection
-   portfolio tickers + benchmark → data_loader.py → historical price data
-   Treasury rates → fetch_monthly_treasury_rates() → risk-free rate data
+### Data Handling Strategy
 
-3. Return Calculation
-   price data → calculate_portfolio_performance_metrics() → portfolio returns
-   benchmark data → calculate_portfolio_performance_metrics() → benchmark returns
+- **Structured Data**: JSON-safe for API consumption
+- **Raw Objects**: Preserved for CLI compatibility
+- **Formatted Reports**: Generated for user-friendly output
 
-4. Performance Metrics
-   returns + risk-free rates → performance calculations → comprehensive metrics
-   - Annualized returns and volatility
-   - Risk-adjusted metrics (Sharpe, Sortino, Information ratios)
-   - Benchmark analysis (alpha, beta, tracking error)
-   - Drawdown analysis and recovery periods
+### Business Logic Extraction
 
-5. Display & Reporting
-   performance metrics → display_portfolio_performance_metrics() → formatted output
-```
+All core business logic has been extracted to dedicated modules:
+
+| Original Function | Extracted Module | Purpose |
+|-------------------|------------------|---------|
+| `run_portfolio()` | `core/portfolio_analysis.py` | Portfolio risk analysis |
+| `run_what_if()` | `core/scenario_analysis.py` | What-if scenario analysis |
+| `run_min_variance()` | `core/optimization.py` | Minimum variance optimization |
+| `run_max_return()` | `core/optimization.py` | Maximum return optimization |
+| `run_stock()` | `core/stock_analysis.py` | Individual stock analysis |
+| `run_portfolio_performance()` | `core/performance_analysis.py` | Performance metrics |
+| `run_and_interpret()` | `core/interpretation.py` | AI interpretation services |
 
 ## 🔧 Component Details
 

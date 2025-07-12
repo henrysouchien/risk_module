@@ -2,7 +2,7 @@
 
 **Purpose**: To help people make better investment decisions by making portfolio risk understandable and actionable through AI-powered analysis and guidance.
 
-A comprehensive portfolio and single-stock risk analysis system that provides multi-factor regression diagnostics, risk decomposition, and portfolio optimization capabilities.
+A comprehensive portfolio and single-stock risk analysis system that provides multi-factor regression diagnostics, risk decomposition, and portfolio optimization capabilities through a **clean 3-layer architecture**.
 
 ## 🚀 Features
 
@@ -16,16 +16,78 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 - **YAML Configuration**: Easy portfolio setup and risk limit management
 - **Centralized Settings**: Consistent analysis across different portfolios
 
+## 🏗️ Architecture Overview
+
+### **NEW: Clean 3-Layer Architecture**
+
+The Risk Module has been refactored from a monolithic structure into a clean, professional architecture:
+
+```
+┌─────────────────────────────────────────────────────┐
+│                ROUTES LAYER                         │
+│           (User Interface)                          │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   │
+│  │ CLI         │ │ API         │ │ AI Chat     │   │
+│  │ run_risk.py │ │ routes/api  │ │ routes/claude│   │
+│  └─────────────┘ └─────────────┘ └─────────────┘   │
+└─────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────┐
+│                CORE LAYER                           │
+│         (Pure Business Logic)                       │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   │
+│  │ Portfolio   │ │ Stock       │ │ Optimization│   │
+│  │ Analysis    │ │ Analysis    │ │ & Scenarios │   │
+│  │ core/       │ │ core/       │ │ core/       │   │
+│  └─────────────┘ └─────────────┘ └─────────────┘   │
+└─────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────┐
+│                DATA LAYER                           │
+│         (Data Access & Storage)                     │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   │
+│  │ Risk Engine │ │ Factor      │ │ Data        │   │
+│  │ portfolio_  │ │ Calculations│ │ Loading     │   │
+│  │ risk.py     │ │ factor_utils│ │ data_loader │   │
+│  └─────────────┘ └─────────────┘ └─────────────┘   │
+└─────────────────────────────────────────────────────┘
+```
+
+### **Key Architectural Benefits**
+
+✅ **Single Source of Truth**: All interfaces use the same core business logic  
+✅ **Dual-Mode Functions**: Every function works in both CLI and API modes  
+✅ **100% Backward Compatibility**: Existing code works identically  
+✅ **Enterprise-Ready**: Professional architecture suitable for production  
+✅ **Perfect Test Coverage**: All functionality thoroughly tested  
+
 ## 🌐 Current API Status
 
 **✅ Complete API Coverage**: All major analysis functions available via REST API with dual output format:
 
-| Analysis Type | CLI Command | API Endpoint | Output Format |
-|---------------|-------------|--------------|---------------|
-| **Portfolio Risk** | `run_risk.py --portfolio` | `POST /api/analyze` | Structured data + formatted report |
-| **Risk Score** | `portfolio_risk_score.py` | `POST /api/risk-score` | Structured data + formatted report |
-| **Performance** | `run_risk.py --performance` | `POST /api/performance` | Structured data + formatted report |
-| **AI Chat** | N/A | `POST /api/claude_chat` | Interactive conversation |
+| Analysis Type | CLI Command | API Endpoint | Core Module |
+|---------------|-------------|--------------|-------------|
+| **Portfolio Risk** | `run_risk.py --portfolio` | `POST /api/analyze` | `core/portfolio_analysis.py` |
+| **Risk Score** | `portfolio_risk_score.py` | `POST /api/risk-score` | Built-in scoring engine |
+| **Performance** | `run_risk.py --performance` | `POST /api/performance` | `core/performance_analysis.py` |
+| **Stock Analysis** | `run_risk.py --stock` | `POST /api/stock` | `core/stock_analysis.py` |
+| **What-If Scenarios** | `run_risk.py --what-if` | `POST /api/what-if` | `core/scenario_analysis.py` |
+| **Optimization** | `run_risk.py --optimize` | `POST /api/optimize` | `core/optimization.py` |
+| **AI Interpretation** | `run_risk.py --interpret` | `POST /api/interpret` | `core/interpretation.py` |
+
+### **Dual-Mode Architecture**
+
+Every function supports both CLI and API modes seamlessly:
+
+```python
+# CLI Mode - prints formatted output
+result = run_portfolio("portfolio.yaml")
+
+# API Mode - returns structured data
+result = run_portfolio("portfolio.yaml", return_data=True)
+```
 
 **Testing Commands:**
 ```bash
@@ -121,11 +183,21 @@ This risk module helps you make better investment decisions by:
 5. **Data Management**: Ensuring reliable, consistent analysis for confident decision-making
 6. **Configuration Management**: Maintaining consistent risk parameters across your portfolios
 
-## 🏗️ Architecture
+## 🏗️ Core Business Logic
 
-The system is built with a modular, layered architecture designed for maintainability, testability, and extensibility:
+The system's business logic has been extracted into dedicated core modules:
 
-### Core Components
+### **Core Modules**
+
+- **Portfolio Analysis** (`core/portfolio_analysis.py`): Pure portfolio risk analysis logic
+- **Stock Analysis** (`core/stock_analysis.py`): Individual stock factor exposure and risk analysis
+- **Scenario Analysis** (`core/scenario_analysis.py`): What-if scenario testing logic
+- **Optimization** (`core/optimization.py`): Portfolio optimization algorithms
+- **Performance Analysis** (`core/performance_analysis.py`): Performance metrics calculation
+- **Interpretation** (`core/interpretation.py`): AI-powered analysis interpretation
+- **Utilities** (`utils/serialization.py`): Data serialization and formatting
+
+### **Data Processing Components**
 
 - **Risk Analysis Engine** (`portfolio_risk.py`): Portfolio risk calculations, performance metrics, and factor decomposition
 - **Risk Scoring System** (`portfolio_risk_score.py`): Comprehensive 0-100 risk scoring with historical stress testing and disruption risk analysis
@@ -136,7 +208,6 @@ The system is built with a modular, layered architecture designed for maintainab
 - **Plaid Integration** (`plaid_loader.py`): Automatic portfolio import from brokerage accounts
 - **Proxy Builder** (`proxy_builder.py`): Automated factor proxy generation with GPT-powered peer analysis
 - **Web Application** (`app.py`): Production Flask app with OAuth, API endpoints, and AI chat integration
-- **Command Interface** (`run_risk.py`): Unified command-line interface for all analysis functions
 
 ## 🛠️ Installation
 
@@ -201,18 +272,16 @@ The system is built with a modular, layered architecture designed for maintainab
    run_portfolio_performance("portfolio.yaml")
    ```
 
-4. **Get comprehensive risk score**:
+4. **API Mode - Get structured data**:
    ```python
-   from portfolio_risk_score import run_risk_score_analysis
+   from run_risk import run_portfolio
    
-   # Get complete risk analysis with detailed reporting
-   results = run_risk_score_analysis("portfolio.yaml", "risk_limits.yaml")
+   # Get structured data for API consumption
+   result = run_portfolio("portfolio.yaml", return_data=True)
    
-   # Access components
-   risk_score = results["risk_score"]
-   print(f"Score: {risk_score['score']}/100 ({risk_score['category']})")
-   print(f"Component scores: {risk_score['component_scores']}")
-   print(f"Recommendations: {risk_score['recommendations']}")
+   # Access specific metrics
+   portfolio_risk = result["portfolio_summary"]["volatility_annual"]
+   factor_betas = result["portfolio_summary"]["portfolio_factor_betas"]
    ```
 
 ### Command-Line Interface

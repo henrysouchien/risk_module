@@ -55,6 +55,7 @@ tools/
 backup/
 backup_system.sh
 prototype/
+completed/
 
 # Plaid integration development files
 *plaid_loader*

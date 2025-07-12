@@ -46,54 +46,13 @@ from gpt_helpers import (
     generate_subindustry_peers,
 )
 from helpers_display import format_stock_metrics
-
-# ============================================================================
-# EXTRACTION MARKER: utils/serialization.py
-# Extract lines 50-93: make_json_safe() function
-# This is a utility function used across multiple modules
-# ============================================================================
-def make_json_safe(obj):
-    """
-    Recursively convert any object to JSON-serializable format.
-    """
-    if isinstance(obj, dict):
-        # Convert dictionary, ensuring keys are JSON-serializable
-        safe_dict = {}
-        for k, v in obj.items():
-            # Convert keys to strings if they're not JSON-serializable
-            if isinstance(k, (pd.Timestamp, datetime)):
-                safe_key = k.strftime("%Y-%m-%d %H:%M:%S") if hasattr(k, 'strftime') else str(k)
-            elif isinstance(k, (int, float, str, bool, type(None))):
-                safe_key = k
-            else:
-                safe_key = str(k)
-            safe_dict[safe_key] = make_json_safe(v)
-        return safe_dict
-    elif isinstance(obj, list):
-        return [make_json_safe(item) for item in obj]
-    elif isinstance(obj, pd.DataFrame):
-        # Convert DataFrame to records with safe keys
-        return obj.to_dict('records')
-    elif isinstance(obj, pd.Series):
-        # Convert Series to dict with safe keys
-        return {str(k): make_json_safe(v) for k, v in obj.to_dict().items()}
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    elif isinstance(obj, (np.int64, np.int32)):
-        return int(obj)
-    elif isinstance(obj, (np.float64, np.float32)):
-        return float(obj)
-    elif isinstance(obj, np.bool_):
-        return bool(obj)
-    elif isinstance(obj, (pd.Timestamp, datetime)):
-        return obj.strftime("%Y-%m-%d %H:%M:%S") if hasattr(obj, 'strftime') else str(obj)
-    elif pd.isna(obj):
-        return None
-    elif isinstance(obj, (int, float, str, bool, type(None))):
-        return obj
-    else:
-        # For any other object, try to convert to string
-        return str(obj)
+from utils.serialization import make_json_safe, _format_portfolio_output_as_text
+from core.portfolio_analysis import analyze_portfolio
+from core.scenario_analysis import analyze_scenario
+from core.optimization import optimize_min_variance, optimize_max_return
+from core.stock_analysis import analyze_stock
+from core.performance_analysis import analyze_performance
+from core.interpretation import analyze_and_interpret, interpret_portfolio_data
 
 # ============================================================================
 # EXTRACTION MARKER: core/interpretation.py
@@ -127,34 +86,21 @@ def run_and_interpret(portfolio_yaml: str, *, return_data: bool = False):
             - full_diagnostics: Complete analysis output text
             - analysis_metadata: Analysis configuration and timestamps
     """
-    buf = StringIO()
-    with redirect_stdout(buf):
-        run_portfolio(portfolio_yaml)
-
-    diagnostics = buf.getvalue()
-    summary_txt = interpret_portfolio_risk(diagnostics)
-
+    # --- BUSINESS LOGIC: Call extracted core function ---------------------
+    interpretation_result = analyze_and_interpret(portfolio_yaml)
+    
+    # --- Dual-Mode Logic ---------------------------------------------------
     if return_data:
-        # Return structured data with raw objects (for service layer)
-        return {
-            "ai_interpretation": summary_txt,
-            "full_diagnostics": diagnostics,
-            "analysis_metadata": {
-                "analysis_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "portfolio_file": portfolio_yaml,
-                "interpretation_service": "gpt",
-                "diagnostics_length": len(diagnostics),
-                "interpretation_length": len(summary_txt)
-            }
-        }
+        # Return structured data from extracted function
+        return interpretation_result
     else:
         # CLI MODE: Print formatted output (existing behavior)
         print("\n=== GPT Portfolio Interpretation ===\n")
-        print(summary_txt)
+        print(interpretation_result["ai_interpretation"])
         print("\n=== Full Diagnostics ===\n")
-        print(diagnostics)
+        print(interpretation_result["full_diagnostics"])
         
-        return summary_txt  # Return GPT summary text (existing behavior)
+        return interpretation_result["ai_interpretation"]  # Return GPT summary text (existing behavior)
 
 # ============================================================================
 # EXTRACTION MARKER: core/interpretation.py
@@ -190,73 +136,23 @@ def interpret_portfolio_output(portfolio_output: Dict[str, Any], *,
             - full_diagnostics: Complete analysis output text
             - analysis_metadata: Analysis configuration and timestamps
     """
-    # Generate formatted diagnostics text from structured output
-    diagnostics = _format_portfolio_output_as_text(portfolio_output)
+    # --- BUSINESS LOGIC: Call extracted core function ---------------------
+    interpretation_result = interpret_portfolio_data(portfolio_output, portfolio_name)
     
-    # Get AI interpretation
-    summary_txt = interpret_portfolio_risk(diagnostics)
-    
+    # --- Dual-Mode Logic ---------------------------------------------------
     if return_data:
-        # Return structured data with raw objects (for service layer)
-        return {
-            "ai_interpretation": summary_txt,
-            "full_diagnostics": diagnostics,
-            "analysis_metadata": {
-                "analysis_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "portfolio_file": portfolio_name or "portfolio_output",
-                "interpretation_service": "gpt",
-                "diagnostics_length": len(diagnostics),
-                "interpretation_length": len(summary_txt)
-            }
-        }
+        # Return structured data from extracted function
+        return interpretation_result
     else:
         # CLI MODE: Print formatted output (existing behavior)
         print("\n=== GPT Portfolio Interpretation ===\n")
-        print(summary_txt)
+        print(interpretation_result["ai_interpretation"])
         print("\n=== Full Diagnostics ===\n")
-        print(diagnostics)
+        print(interpretation_result["full_diagnostics"])
         
-        return summary_txt  # Return GPT summary text (existing behavior)
+        return interpretation_result["ai_interpretation"]  # Return GPT summary text (existing behavior)
 
-# ============================================================================
-# EXTRACTION MARKER: utils/serialization.py
-# Extract lines 206-241: _format_portfolio_output_as_text() function
-# This formats structured data back to text for AI interpretation
-# ============================================================================
-def _format_portfolio_output_as_text(portfolio_output: Dict[str, Any]) -> str:
-    """
-    Convert structured portfolio output back to formatted text.
-    
-    This recreates the text that would have been printed by run_portfolio()
-    when called without return_data=True.
-    """
-    from io import StringIO
-    
-    # Create a buffer to capture formatted output
-    buf = StringIO()
-    
-    # Use the existing formatted report from portfolio output
-    formatted_report = portfolio_output.get("formatted_report", "")
-    if formatted_report:
-        buf.write(formatted_report)
-    
-    # Add risk analysis tables
-    risk_analysis = portfolio_output.get("risk_analysis", {})
-    beta_analysis = portfolio_output.get("beta_analysis", {})
-    
-    # Add risk checks table
-    buf.write("\n=== Portfolio Risk Limit Checks ===\n")
-    for check in risk_analysis.get("risk_checks", []):
-        status = "PASS" if check.get("Pass", False) else "FAIL"
-        buf.write(f"{check.get('check_name', 'Unknown')}: {status}\n")
 
-    # Add beta checks table
-    buf.write("\n=== Beta Exposure Checks ===\n")
-    for check in beta_analysis.get("beta_checks", []):
-        status = "PASS" if check.get("pass", False) else "FAIL"
-        buf.write(f"{check.get('factor', 'Unknown')}: {status}\n")
-    
-    return buf.getvalue()
 
 # ============================================================================
 # EXTRACTION MARKER: core/portfolio_analysis.py
@@ -333,49 +229,22 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
     True
     """
     
-    # ─── BUSINESS LOGIC START: Extract to core/portfolio_analysis.py ─────────
-    # ─── 1. Load YAML Inputs ─────────────────────────────────
-    config = load_portfolio_config(filepath)
+    # ─── BUSINESS LOGIC: Call extracted core function ─────────
+    analysis_result = analyze_portfolio(filepath)
     
+    # Extract components for compatibility with dual-mode logic
+    summary = analysis_result["portfolio_summary"]
+    df_risk = pd.DataFrame(analysis_result["risk_analysis"]["risk_checks"])
+    df_beta = pd.DataFrame(analysis_result["beta_analysis"]["beta_checks"])
+    max_betas = analysis_result["beta_analysis"]["max_betas"]
+    max_betas_by_proxy = analysis_result["beta_analysis"]["max_betas_by_proxy"]
+    weights = analysis_result["analysis_metadata"]["weights"]
+    lookback_years = analysis_result["analysis_metadata"]["lookback_years"]
+    
+    # Load config for CLI display (needed for return_data mode)
+    config = load_portfolio_config(filepath)
     with open("risk_limits.yaml", "r") as f:
         risk_config = yaml.safe_load(f)
-
-    weights = standardize_portfolio_input(config["portfolio_input"], latest_price)["weights"]
-    
-    # ─── 2. Build Portfolio View ─────────────────────────────
-    summary = build_portfolio_view(
-        weights,
-        config["start_date"],
-        config["end_date"],
-        config.get("expected_returns"),
-        config.get("stock_factor_proxies")
-    )
-    
-    # ─── 3. Calculate Beta Limits ────────────────────────────
-    from settings import PORTFOLIO_DEFAULTS
-    lookback_years = PORTFOLIO_DEFAULTS.get('worst_case_lookback_years', 10)
-    max_betas, max_betas_by_proxy = calc_max_factor_betas(
-        portfolio_yaml=filepath,
-        risk_yaml="risk_limits.yaml",
-        lookback_years=lookback_years,
-        echo=False  # Don't print helper tables when capturing output
-    )
-    
-    # ─── 4. Run Risk Checks ──────────────────────────────────
-    df_risk = evaluate_portfolio_risk_limits(
-        summary,
-        risk_config["portfolio_limits"],
-        risk_config["concentration_limits"],
-        risk_config["variance_limits"]
-    )
-    
-    df_beta = evaluate_portfolio_beta_limits(
-        portfolio_factor_betas=summary["portfolio_factor_betas"],
-        max_betas=max_betas,
-        proxy_betas=summary["industry_variance"].get("per_industry_group_beta"),
-        max_proxy_betas=max_betas_by_proxy
-    )
-    # ─── BUSINESS LOGIC END: Extract to core/portfolio_analysis.py ─────────
 
     # ─── 5. Dual-Mode Logic ─────────────────────────────────
     if return_data:
@@ -503,65 +372,24 @@ def run_what_if(
       provide a valid change set.
     """
     
-    # --- load configs ------------------------------------------------------
-    config = load_portfolio_config(filepath)
-    with open("risk_limits.yaml", "r") as f:
-        risk_config = yaml.safe_load(f)
-
-    weights = standardize_portfolio_input(config["portfolio_input"], latest_price)["weights"]
-
-    # parse CLI delta string
-    shift_dict = None
-    if delta:
-        shift_dict = {k.strip(): v.strip() for k, v in (pair.split(":") for pair in delta.split(","))}
-
-    # --- run the engine ----------------------------------------------------
-    # First, create base portfolio summary for comparison
-    summary_base = build_portfolio_view(
-        weights,
-        config["start_date"],
-        config["end_date"],
-        config.get("expected_returns"),
-        config.get("stock_factor_proxies")
-    )
+    # --- BUSINESS LOGIC: Call extracted core function ----------------------
+    scenario_result = analyze_scenario(filepath, scenario_yaml, delta)
     
-    # Then run the scenario
-    summary, risk_new, beta_new, cmp_risk, cmp_beta = run_what_if_scenario(
-        base_weights = weights,
-        config       = config,
-        risk_config  = risk_config,
-        proxies      = config["stock_factor_proxies"],
-        scenario_yaml = scenario_yaml,
-        shift_dict   = shift_dict,
-    )
-    
-    # split beta table between factors and industry
-    beta_f_new = beta_new.copy()
-    beta_p_new = pd.DataFrame()
-    
-    # Only try to split if we have a proper index
-    if hasattr(beta_new.index, 'str') and len(beta_new) > 0:
-        try:
-            industry_mask = beta_new.index.str.startswith("industry_proxy::")
-            beta_f_new = beta_new[~industry_mask]
-            beta_p_new = beta_new[industry_mask].copy()
-            if not beta_p_new.empty:
-                beta_p_new.index = beta_p_new.index.str.replace("industry_proxy::", "")
-        except Exception as e:
-            # Fallback: use the original beta table as factor table
-            print(f"Warning: Could not split beta table: {e}")
-            beta_f_new = beta_new.copy()
-            beta_p_new = pd.DataFrame()
+    # Extract components for compatibility with dual-mode logic
+    summary = scenario_result["raw_tables"]["summary"]
+    risk_new = scenario_result["raw_tables"]["risk_new"]
+    beta_f_new = scenario_result["raw_tables"]["beta_f_new"]
+    beta_p_new = scenario_result["raw_tables"]["beta_p_new"]
+    cmp_risk = scenario_result["raw_tables"]["cmp_risk"]
+    cmp_beta = scenario_result["raw_tables"]["cmp_beta"]
     
     # ─── Dual-Mode Logic ─────────────────────────────────────
     if return_data:
-        # API MODE: Return structured data (JSON-serializable)
-        from core.result_objects import WhatIfResult
-        
-        # Create formatted report by capturing print output
+        # API MODE: Return structured data from extracted function
         from io import StringIO
         from contextlib import redirect_stdout
         
+        # Create formatted report by capturing print output
         report_buffer = StringIO()
         with redirect_stdout(report_buffer):
             print_what_if_report(
@@ -574,43 +402,9 @@ def run_what_if(
             )
         formatted_report = report_buffer.getvalue()
         
-        return make_json_safe({
-            "scenario_summary": summary,
-            "risk_analysis": {
-                "risk_checks": risk_new.to_dict('records') if not risk_new.empty else [],
-                "risk_passes": bool(risk_new['Pass'].all()) if not risk_new.empty and 'Pass' in risk_new.columns else True,
-                "risk_violations": risk_new[~risk_new['Pass']].to_dict('records') if not risk_new.empty and 'Pass' in risk_new.columns else [],
-                "risk_limits": {
-                    "portfolio_limits": risk_config["portfolio_limits"],
-                    "concentration_limits": risk_config["concentration_limits"],
-                    "variance_limits": risk_config["variance_limits"]
-                }
-            },
-            "beta_analysis": {
-                "factor_beta_checks": beta_f_new.to_dict('records') if not beta_f_new.empty else [],
-                "proxy_beta_checks": beta_p_new.to_dict('records') if not beta_p_new.empty else [],
-                "beta_passes": bool(beta_new['pass'].all()) if not beta_new.empty and 'pass' in beta_new.columns else True,
-                "beta_violations": beta_new[~beta_new['pass']].to_dict('records') if not beta_new.empty and 'pass' in beta_new.columns else [],
-            },
-            "comparison_analysis": {
-                "risk_comparison": cmp_risk.to_dict('records'),
-                "beta_comparison": cmp_beta.to_dict('records'),
-            },
-            "delta_change": {
-                "volatility_delta": summary_base["volatility_annual"] - summary["volatility_annual"],
-                "base_volatility": summary_base["volatility_annual"],
-                "scenario_volatility": summary["volatility_annual"]
-            },
-            "scenario_metadata": {
-                "scenario_yaml": scenario_yaml,
-                "delta_string": delta,
-                "shift_dict": shift_dict,
-                "analysis_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "portfolio_file": filepath,
-                "base_weights": weights
-            },
-            "formatted_report": formatted_report
-        })
+        # Add formatted report to scenario result and return
+        scenario_result["formatted_report"] = formatted_report
+        return scenario_result
     else:
         # CLI MODE: Print formatted output
         print_what_if_report(
@@ -671,60 +465,29 @@ def run_min_variance(filepath: str, *, return_data: bool = False):
     stdout; nothing is returned.
     """
     
-    # --- load configs ------------------------------------------------------
-    config = load_portfolio_config(filepath)
-    with open("risk_limits.yaml", "r") as f:
-        risk_config = yaml.safe_load(f)
-
-    weights = standardize_portfolio_input(config["portfolio_input"], latest_price)["weights"]
-
-    # --- run the engine ----------------------------------------------------
-    w, r, b = run_min_var(
-        base_weights = weights,
-        config       = config,
-        risk_config  = risk_config,
-        proxies      = config["stock_factor_proxies"],
-    )
+    # --- BUSINESS LOGIC: Call extracted core function ---------------------
+    optimization_result = optimize_min_variance(filepath)
+    
+    # Extract components for compatibility with dual-mode logic
+    w = optimization_result["raw_tables"]["weights"]
+    r = optimization_result["raw_tables"]["risk_table"]
+    b = optimization_result["raw_tables"]["beta_table"]
     
     # ─── Dual-Mode Logic ─────────────────────────────────────
     if return_data:
-        # API MODE: Return structured data (JSON-serializable)
+        # API MODE: Return structured data from extracted function
         from core.result_objects import OptimizationResult
         
         # Create OptimizationResult object for formatted report
-        optimization_result = OptimizationResult.from_min_variance_output(
+        optimization_obj = OptimizationResult.from_min_variance_output(
             optimized_weights=w,
             risk_table=r,
             beta_table=b
         )
         
-        return make_json_safe({
-            "optimized_weights": w,
-            "risk_analysis": {
-                "risk_checks": r.to_dict('records'),
-                "risk_passes": bool(r['Pass'].all()),
-                "risk_violations": r[~r['Pass']].to_dict('records'),
-                "risk_limits": {
-                    "portfolio_limits": risk_config["portfolio_limits"],
-                    "concentration_limits": risk_config["concentration_limits"],
-                    "variance_limits": risk_config["variance_limits"]
-                }
-            },
-            "beta_analysis": {
-                "beta_checks": b.to_dict('records'),
-                "beta_passes": bool(b['pass'].all()),
-                "beta_violations": b[~b['pass']].to_dict('records'),
-            },
-            "optimization_metadata": {
-                "optimization_type": "minimum_variance",
-                "analysis_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "portfolio_file": filepath,
-                "original_weights": weights,
-                "total_positions": len(w),
-                "active_positions": len([v for v in w.values() if abs(v) > 0.001])
-            },
-            "formatted_report": optimization_result.to_formatted_report()
-        })
+        # Add formatted report to optimization result and return
+        optimization_result["formatted_report"] = optimization_obj.to_formatted_report()
+        return optimization_result
     else:
         # CLI MODE: Print formatted output
         print_min_var_report(weights=w, risk_tbl=r, beta_tbl=b)
@@ -779,30 +542,25 @@ def run_max_return(filepath: str, *, return_data: bool = False):
       anything.
     """
     
-    # --- load configs ------------------------------------------------------
-    config = load_portfolio_config(filepath)
-    with open("risk_limits.yaml", "r") as f:
-        risk_config = yaml.safe_load(f)
-
-    weights = standardize_portfolio_input(config["portfolio_input"], latest_price)["weights"]
+    # --- BUSINESS LOGIC: Call extracted core function ---------------------
+    optimization_result = optimize_max_return(filepath)
     
-    # --- run the engine ----------------------------------------------------
-    w, summary, r, f_b, p_b = run_max_return_portfolio(
-        weights     = weights,
-        config      = config,
-        risk_config = risk_config,
-        proxies     = config["stock_factor_proxies"],
-    )
+    # Extract components for compatibility with dual-mode logic
+    w = optimization_result["raw_tables"]["weights"]
+    summary = optimization_result["raw_tables"]["summary"]
+    r = optimization_result["raw_tables"]["risk_table"]
+    f_b = optimization_result["raw_tables"]["factor_table"]
+    p_b = optimization_result["raw_tables"]["proxy_table"]
     
     # ─── Dual-Mode Logic ─────────────────────────────────────
     if return_data:
-        # API MODE: Return structured data + capture formatted report + create object
+        # API MODE: Return structured data from extracted function
         from core.result_objects import OptimizationResult
         from io import StringIO
         import contextlib
         
         # Create result object for structured data
-        optimization_result = OptimizationResult.from_max_return_output(
+        optimization_obj = OptimizationResult.from_max_return_output(
             optimized_weights=w,
             portfolio_summary=summary,
             risk_table=r,
@@ -817,42 +575,9 @@ def run_max_return(filepath: str, *, return_data: bool = False):
         
         formatted_report = report_buffer.getvalue()
         
-        # Combine object data with additional metadata
-        result_data = optimization_result.to_dict()
-        result_data.update({
-            "optimized_weights": w,
-            "portfolio_summary": summary,
-            "risk_analysis": {
-                "risk_checks": r.to_dict('records'),
-                "risk_passes": bool(r['Pass'].all()),
-                "risk_violations": r[~r['Pass']].to_dict('records'),
-                "risk_limits": {
-                    "portfolio_limits": risk_config["portfolio_limits"],
-                    "concentration_limits": risk_config["concentration_limits"],
-                    "variance_limits": risk_config["variance_limits"]
-                }
-            },
-            "beta_analysis": {
-                "factor_beta_checks": f_b.to_dict('records'),
-                "proxy_beta_checks": p_b.to_dict('records'),
-                "factor_beta_passes": bool(f_b['pass'].all()),
-                "proxy_beta_passes": bool(p_b['pass'].all()),
-                "factor_beta_violations": f_b[~f_b['pass']].to_dict('records'),
-                "proxy_beta_violations": p_b[~p_b['pass']].to_dict('records'),
-            },
-            "optimization_metadata": {
-                "optimization_type": "maximum_return",
-                "analysis_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "portfolio_file": filepath,
-                "original_weights": weights,
-                "total_positions": len(w),
-                "active_positions": len([v for v in w.values() if abs(v) > 0.001]),
-                "expected_returns_used": config.get("expected_returns", {})
-            },
-            "formatted_report": formatted_report
-        })
-        
-        return make_json_safe(result_data)
+        # Add formatted report to optimization result and return
+        optimization_result["formatted_report"] = formatted_report
+        return optimization_result
     else:
         # CLI MODE: Print formatted output
         print_max_return_report(weights=w, risk_tbl=r, df_factors=f_b, df_proxies=p_b)
@@ -889,109 +614,54 @@ def run_stock(
         None or Dict[str, Any]: If return_data=False, returns None and prints formatted output.
                                 If return_data=True, returns structured data dictionary.
     """
-    ticker = ticker.upper()
-
-    # ─── 1. Resolve date window ─────────────────────────────────────────
-    today = pd.Timestamp.today().normalize()
-    start = pd.to_datetime(start) if start else today - pd.DateOffset(years=5)
-    end   = pd.to_datetime(end)   if end   else today
-
-    # ─── 2. Auto-lookup proxy block from YAML (if requested) ────────────
-    if factor_proxies is None and yaml_path:
+    # --- BUSINESS LOGIC: Call extracted core function ---------------------
+    analysis_result = analyze_stock(ticker, start, end, factor_proxies, yaml_path)
+    
+    # Handle any YAML loading errors for CLI mode
+    if factor_proxies is None and yaml_path and not return_data:
         try:
-            cfg = load_portfolio_config(yaml_path)       # already handles safe_load + validation
+            cfg = load_portfolio_config(yaml_path)
             proxies = cfg.get("stock_factor_proxies", {})
-            factor_proxies = proxies.get(ticker.upper())
+            if not proxies.get(ticker.upper()):
+                print(f"⚠️  Could not load proxies from YAML for {ticker}")
         except Exception as e:
-            if not return_data:
-                print(f"⚠️  Could not load proxies from YAML: {e}")
-
-    # ─── 3. Diagnostics path A: multi-factor profile ────────────────────
-    if factor_proxies:
-        profile = get_detailed_stock_factor_profile(
-            ticker, start, end, factor_proxies
-        )
+            print(f"⚠️  Could not load proxies from YAML: {e}")
+    
+    # --- Dual-Mode Logic ---------------------------------------------------
+    if return_data:
+        # API MODE: Return structured data from extracted function
+        from core.result_objects import StockAnalysisResult
         
-        if return_data:
-            # API MODE: Return structured data (JSON-serializable)
-            from core.result_objects import StockAnalysisResult
-            
-            # Create StockAnalysisResult object for formatted report
+        # Create StockAnalysisResult object for formatted report
+        if analysis_result["analysis_type"] == "multi_factor":
             stock_result = StockAnalysisResult.from_stock_analysis(
                 ticker=ticker,
-                vol_metrics=profile["vol_metrics"],
-                regression_metrics=profile["regression_metrics"],
-                factor_summary=profile["factor_summary"]
+                vol_metrics=analysis_result["volatility_metrics"],
+                regression_metrics=analysis_result["regression_metrics"],
+                factor_summary=analysis_result["factor_summary"]
             )
-            
-            return make_json_safe({
-                "ticker": ticker,
-                "analysis_period": {
-                    "start_date": start.strftime("%Y-%m-%d"),
-                    "end_date": end.strftime("%Y-%m-%d")
-                },
-                "analysis_type": "multi_factor",
-                "volatility_metrics": profile["vol_metrics"],
-                "regression_metrics": profile["regression_metrics"],
-                "factor_summary": profile["factor_summary"],
-                "factor_proxies": factor_proxies,
-                "analysis_metadata": {
-                    "has_factor_analysis": True,
-                    "num_factors": len(factor_proxies) if factor_proxies else 0,
-                    "analysis_date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-                },
-                "formatted_report": stock_result.to_formatted_report()
-            })
         else:
-            # CLI MODE: Print formatted output
-            format_stock_metrics(profile["vol_metrics"], "Volatility Metrics")
-            format_stock_metrics(profile["regression_metrics"], "Market Regression")
-            
-            print("=== Factor Summary ===")
-            print(profile["factor_summary"])
-        
-    # ─── 4. Diagnostics path B: simple market regression ────────────────
-    else:
-        result = get_stock_risk_profile(
-            ticker,
-            start_date=start,
-            end_date=end,
-            benchmark="SPY"
-        )
-        
-        if return_data:
-            # API MODE: Return structured data (JSON-serializable)
-            from core.result_objects import StockAnalysisResult
-            
-            # Create StockAnalysisResult object for formatted report  
             stock_result = StockAnalysisResult.from_stock_analysis(
                 ticker=ticker,
-                vol_metrics=result["vol_metrics"],
-                regression_metrics=result["risk_metrics"],
+                vol_metrics=analysis_result["volatility_metrics"],
+                regression_metrics=analysis_result["risk_metrics"],
                 factor_summary=None
             )
+        
+        # Add formatted report to analysis result and return
+        analysis_result["formatted_report"] = stock_result.to_formatted_report()
+        return analysis_result
+    else:
+        # CLI MODE: Print formatted output based on analysis type
+        if analysis_result["analysis_type"] == "multi_factor":
+            format_stock_metrics(analysis_result["volatility_metrics"], "Volatility Metrics")
+            format_stock_metrics(analysis_result["regression_metrics"], "Market Regression")
             
-            return make_json_safe({
-                "ticker": ticker,
-                "analysis_period": {
-                    "start_date": start.strftime("%Y-%m-%d"),
-                    "end_date": end.strftime("%Y-%m-%d")
-                },
-                "analysis_type": "simple_market_regression",
-                "volatility_metrics": result["vol_metrics"],
-                "risk_metrics": result["risk_metrics"],
-                "benchmark": "SPY",
-                "analysis_metadata": {
-                    "has_factor_analysis": False,
-                    "num_factors": 0,
-                    "analysis_date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-                },
-                "formatted_report": stock_result.to_formatted_report()
-            })
+            print("=== Factor Summary ===")
+            print(analysis_result["factor_summary"])
         else:
-            # CLI MODE: Print formatted output
-            format_stock_metrics(result["vol_metrics"], "Volatility Metrics")
-            format_stock_metrics(result["risk_metrics"], "Market Regression (SPY)")
+            format_stock_metrics(analysis_result["volatility_metrics"], "Volatility Metrics")
+            format_stock_metrics(analysis_result["risk_metrics"], "Market Regression (SPY)")
 
 # ============================================================================
 # EXTRACTION MARKER: core/performance.py
@@ -1031,116 +701,61 @@ def run_portfolio_performance(filepath: str, *, return_data: bool = False):
     * Defaults to SPY as benchmark but can be customized.
     * Uses 3-month Treasury rates from FMP API as risk-free rate.
     """
-    from portfolio_risk import calculate_portfolio_performance_metrics
-    from run_portfolio_risk import display_portfolio_performance_metrics
+    # --- BUSINESS LOGIC: Call extracted core function ---------------------
+    performance_result = analyze_performance(filepath)
     
-    try:
-        # Load portfolio configuration
-        config = load_portfolio_config(filepath)
-        
-        # Standardize portfolio weights  
-        weights = standardize_portfolio_input(config["portfolio_input"], latest_price)["weights"]
-        
-        # Calculate performance metrics
-        performance_metrics = calculate_portfolio_performance_metrics(
-            weights=weights,
-            start_date=config["start_date"],
-            end_date=config["end_date"],
-            benchmark_ticker="SPY"  # Could make this configurable later
-        )
-        
-        # Check for calculation errors
-        if "error" in performance_metrics:
-            if return_data:
-                # API MODE: Return error in structured format
-                return make_json_safe({
-                    "error": performance_metrics["error"],
-                    "analysis_period": {
-                        "start_date": config["start_date"],
-                        "end_date": config["end_date"]
-                    },
-                    "portfolio_file": filepath,
-                    "analysis_date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-                })
-            else:
-                # CLI MODE: Print error and return
-                print(f"❌ Performance calculation failed: {performance_metrics['error']}")
-                return
-        
+    # Check for errors in the analysis result
+    if "error" in performance_result:
         if return_data:
-            # API MODE: Return structured data (JSON-serializable)
-            import io
-            import sys
-            
-            # Capture CLI-style formatted output as string
-            original_stdout = sys.stdout
-            sys.stdout = captured_output = io.StringIO()
-            
-            try:
-                # Generate the formatted CLI output
-                display_portfolio_performance_metrics(performance_metrics)
-                formatted_report_string = captured_output.getvalue()
-            finally:
-                sys.stdout = original_stdout
-            
-            return make_json_safe({
-                "performance_metrics": performance_metrics,
-                "analysis_period": {
-                    "start_date": config["start_date"],
-                    "end_date": config["end_date"],
-                    "years": performance_metrics["analysis_period"]["years"]
-                },
-                "portfolio_summary": {
-                    "file": filepath,
-                    "positions": len(weights),
-                    "benchmark": "SPY"
-                },
-                "analysis_metadata": {
-                    "analysis_date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "calculation_successful": True
-                },
-                "formatted_report": formatted_report_string
-            })
+            # API MODE: Return error from extracted function
+            return performance_result
         else:
-            # CLI MODE: Print formatted output (original behavior)
-            print("📊 Portfolio Performance Analysis")
-            print("=" * 50)
-            
-            print(f"📁 Portfolio file: {filepath}")
-            print(f"📅 Analysis period: {config['start_date']} to {config['end_date']}")
-            print(f"📊 Positions: {len(weights)}")
-            print()
-            
-            print("🔄 Calculating performance metrics...")
-            print("✅ Performance calculation successful!")
-            
-            # Display the results
-            display_portfolio_performance_metrics(performance_metrics)
+            # CLI MODE: Print error and return
+            print(f"❌ Performance calculation failed: {performance_result['error']}")
+            return
+    
+    # --- Dual-Mode Logic ---------------------------------------------------
+    if return_data:
+        # API MODE: Return structured data from extracted function
+        from run_portfolio_risk import display_portfolio_performance_metrics
+        import io
+        import sys
         
-    except FileNotFoundError:
-        if return_data:
-            # API MODE: Return error in structured format
-            return make_json_safe({
-                "error": f"Portfolio file '{filepath}' not found",
-                "portfolio_file": filepath,
-                "analysis_date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-        else:
-            # CLI MODE: Print error
-            print(f"❌ Error: Portfolio file '{filepath}' not found")
-    except Exception as e:
-        if return_data:
-            # API MODE: Return error in structured format
-            return make_json_safe({
-                "error": f"Error during performance analysis: {str(e)}",
-                "portfolio_file": filepath,
-                "analysis_date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-        else:
-            # CLI MODE: Print error with traceback
-            print(f"❌ Error during performance analysis: {str(e)}")
-            import traceback
-            traceback.print_exc()
+        # Capture CLI-style formatted output as string
+        original_stdout = sys.stdout
+        sys.stdout = captured_output = io.StringIO()
+        
+        try:
+            # Generate the formatted CLI output
+            display_portfolio_performance_metrics(performance_result["raw_data"]["performance_metrics"])
+            formatted_report_string = captured_output.getvalue()
+        finally:
+            sys.stdout = original_stdout
+        
+        # Add formatted report to performance result and return
+        performance_result["formatted_report"] = formatted_report_string
+        return performance_result
+    else:
+        # CLI MODE: Print formatted output (original behavior)
+        from run_portfolio_risk import display_portfolio_performance_metrics
+        
+        config = performance_result["raw_data"]["config"]
+        weights = performance_result["raw_data"]["weights"]
+        performance_metrics = performance_result["raw_data"]["performance_metrics"]
+        
+        print("📊 Portfolio Performance Analysis")
+        print("=" * 50)
+        
+        print(f"📁 Portfolio file: {filepath}")
+        print(f"📅 Analysis period: {config['start_date']} to {config['end_date']}")
+        print(f"📊 Positions: {len(weights)}")
+        print()
+        
+        print("🔄 Calculating performance metrics...")
+        print("✅ Performance calculation successful!")
+        
+        # Display the results
+        display_portfolio_performance_metrics(performance_metrics)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
