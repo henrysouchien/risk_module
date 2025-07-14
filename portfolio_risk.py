@@ -14,6 +14,7 @@ import functools
 import hashlib
 import json
 
+
 from data_loader import fetch_monthly_close
 from factor_utils import (
     calc_monthly_returns,
@@ -218,70 +219,68 @@ def compute_portfolio_variance_breakdown(
         "factor_breakdown_pct":    per_factor_pct.to_dict()
     }
 
-# Global cache for build_portfolio_view results
-_PORTFOLIO_VIEW_CACHE = {}
+# ============================================================================
+# LRU CACHE IMPLEMENTATION FOR PORTFOLIO ANALYSIS
+# ============================================================================
 
-def cache_portfolio_view(func):
+def serialize_for_cache(obj):
+    """Serialize complex objects for use as cache keys."""
+    if obj is None:
+        return None
+    elif isinstance(obj, dict):
+        return json.dumps(obj, sort_keys=True)
+    elif isinstance(obj, (list, tuple)):
+        return json.dumps(obj, sort_keys=True)
+    else:
+        return str(obj)
+
+@functools.lru_cache(maxsize=100)  # Keep 100 most recent portfolio analyses
+def _cached_build_portfolio_view(
+    weights_json: str,
+    start_date: str,
+    end_date: str,
+    expected_returns_json: Optional[str] = None,
+    stock_factor_proxies_json: Optional[str] = None
+):
     """
-    Decorator to cache build_portfolio_view results.
+    LRU-cached version of build_portfolio_view.
     
-    This decorator intercepts calls to build_portfolio_view and caches the results
-    based on the input parameters. Since build_portfolio_view is expensive (2-3 seconds)
-    and called by multiple services, this provides significant performance improvements.
-    
-    Cache Key Generation:
-    - Normalizes all parameters into a consistent format
-    - Converts to JSON string with deterministic ordering
-    - Hashes the JSON string to create a unique cache key
+    Uses LRU (Least Recently Used) eviction policy - keeps recently accessed
+    portfolio analyses in memory while automatically evicting old ones.
     
     Performance Impact:
     - First call: ~2-3 seconds (normal computation)
-    - Subsequent calls: ~10ms (cache retrieval)
-    - Typical speedup: 200-300x faster for cached results
-    
-    Cache Management:
-    - Cache persists for the lifetime of the Python process
-    - Can be cleared via clear_portfolio_view_cache()
-    - Memory usage scales with number of unique portfolio configurations
+    - Recent calls: ~10ms (LRU cache retrieval)
+    - Memory bounded: Max 100 analyses (~50MB)
+    - Automatic cleanup: Least recently used analyses evicted
     """
-    @functools.wraps(func)
-    def wrapper(weights, start_date, end_date, expected_returns=None, stock_factor_proxies=None):
-        # 1. Create cache key from all parameters
-        cache_data = {
-            'weights': sorted(weights.items()),  # Sort for consistent ordering
-            'start_date': start_date,
-            'end_date': end_date,
-            'expected_returns': sorted(expected_returns.items()) if expected_returns else None,
-            'stock_factor_proxies': stock_factor_proxies
-        }
-        
-        # 2. Hash the cache data to create unique key
-        cache_key = hashlib.md5(json.dumps(cache_data, sort_keys=True).encode()).hexdigest()
-        
-        # 3. Check cache first
-        if cache_key in _PORTFOLIO_VIEW_CACHE:
-            return _PORTFOLIO_VIEW_CACHE[cache_key]
-        
-        # 4. Cache miss - compute result
-        result = func(weights, start_date, end_date, expected_returns, stock_factor_proxies)
-        
-        # 5. Store result in cache
-        _PORTFOLIO_VIEW_CACHE[cache_key] = result
-        return result
+    # Deserialize parameters
+    weights = json.loads(weights_json)
+    expected_returns = json.loads(expected_returns_json) if expected_returns_json else None
+    stock_factor_proxies = json.loads(stock_factor_proxies_json) if stock_factor_proxies_json else None
     
-    return wrapper
+    # Call the original computation function
+    return _build_portfolio_view_computation(weights, start_date, end_date, expected_returns, stock_factor_proxies)
 
 def clear_portfolio_view_cache():
-    """Clear the build_portfolio_view cache."""
-    global _PORTFOLIO_VIEW_CACHE
-    _PORTFOLIO_VIEW_CACHE.clear()
+    """Clear the LRU cache for build_portfolio_view."""
+    _cached_build_portfolio_view.cache_clear()
 
 def get_portfolio_view_cache_stats():
-    """Get cache statistics."""
+    """Get LRU cache statistics."""
+    cache_info = _cached_build_portfolio_view.cache_info()
     return {
-        'cache_size': len(_PORTFOLIO_VIEW_CACHE),
-        'cache_enabled': True
+        'cache_type': 'LRU',
+        'cache_size': cache_info.currsize,
+        'max_size': cache_info.maxsize,
+        'hits': cache_info.hits,
+        'misses': cache_info.misses,
+        'hit_rate': cache_info.hits / (cache_info.hits + cache_info.misses) if (cache_info.hits + cache_info.misses) > 0 else 0
     }
+
+# ============================================================================
+# PORTFOLIO ANALYSIS FUNCTIONS
+# ============================================================================
 
 def compute_euler_variance_percent(
     *,                       # force keyword args for clarity
@@ -364,11 +363,38 @@ def compute_target_allocations(
     df["Eq Diff"] = df["Portfolio Weight"] - df["Equal Weight"]
     return df
     
-@cache_portfolio_view
 def build_portfolio_view(
     weights: Dict[str, float],
     start_date: str,
-    end_date:   str,
+    end_date: str,
+    expected_returns: Optional[Dict[str, float]] = None,
+    stock_factor_proxies: Optional[Dict[str, Dict[str, Union[str, List[str]]]]] = None
+) -> Dict[str, Any]:
+    """
+    Build comprehensive portfolio view with LRU caching.
+    
+    This is the main entry point for portfolio analysis. It uses LRU caching
+    to keep recently accessed portfolio analyses in memory for fast retrieval.
+    
+    Performance:
+    - First call: ~2-3 seconds (full computation)
+    - Recent calls: ~10ms (LRU cache hit)
+    - Memory: Bounded to 100 most recent analyses
+    """
+    # Serialize parameters for LRU cache
+    weights_json = serialize_for_cache(weights)
+    expected_returns_json = serialize_for_cache(expected_returns)
+    stock_factor_proxies_json = serialize_for_cache(stock_factor_proxies)
+    
+    # Call LRU-cached function
+    return _cached_build_portfolio_view(
+        weights_json, start_date, end_date, expected_returns_json, stock_factor_proxies_json
+    )
+
+def _build_portfolio_view_computation(
+    weights: Dict[str, float],
+    start_date: str,
+    end_date: str,
     expected_returns: Optional[Dict[str, float]] = None,
     stock_factor_proxies: Optional[Dict[str, Dict[str, Union[str, List[str]]]]] = None
 ) -> Dict[str, Any]:

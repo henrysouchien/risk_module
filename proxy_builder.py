@@ -9,65 +9,158 @@ from settings import PORTFOLIO_DEFAULTS          # <— central date window
 import functools
 import hashlib
 import json
+from collections import defaultdict, OrderedDict
 
-# Global caches for expensive operations
-_COMPANY_PROFILE_CACHE = {}
-_GPT_PEERS_CACHE = {}
+# ============================================================================
+# LFU CACHE IMPLEMENTATION FOR PROXY DATA
+# ============================================================================
+
+class LFUCache:
+    """
+    LFU (Least Frequently Used) Cache implementation.
+    
+    This cache evicts the least frequently accessed items when at capacity.
+    Perfect for company profiles and GPT peers where popular stocks (AAPL, MSFT)
+    should stay cached while obscure stocks get evicted.
+    
+    Key Features:
+    - Frequency-based eviction: Most accessed items stay in cache
+    - O(1) get and put operations
+    - Cross-user optimization: Popular stocks cached for all users
+    - Memory bounded: Automatic cleanup at max capacity
+    """
+    
+    def __init__(self, maxsize: int):
+        self.maxsize = maxsize
+        self.cache = {}  # key -> value
+        self.frequencies = {}  # key -> frequency count
+        self.min_frequency = 1
+        self.freq_to_keys = defaultdict(OrderedDict)  # frequency -> {key: True, ...}
+        
+    def get(self, key):
+        """Get value and increment frequency."""
+        if key not in self.cache:
+            return None
+            
+        # Increment frequency
+        self._increment_frequency(key)
+        return self.cache[key]
+        
+    def put(self, key, value):
+        """Put value and handle eviction if needed."""
+        if self.maxsize <= 0:
+            return
+            
+        if key in self.cache:
+            # Update existing key
+            self.cache[key] = value
+            self._increment_frequency(key)
+            return
+            
+        # Check if we need to evict
+        if len(self.cache) >= self.maxsize:
+            self._evict()
+            
+        # Add new key
+        self.cache[key] = value
+        self.frequencies[key] = 1
+        self.freq_to_keys[1][key] = True
+        self.min_frequency = 1
+        
+    def _increment_frequency(self, key):
+        """Increment frequency of a key and update data structures."""
+        freq = self.frequencies[key]
+        self.frequencies[key] = freq + 1
+        
+        # Remove from old frequency bucket
+        del self.freq_to_keys[freq][key]
+        
+        # Update min_frequency if this was the last key at min frequency
+        if not self.freq_to_keys[freq] and freq == self.min_frequency:
+            self.min_frequency += 1
+            
+        # Add to new frequency bucket
+        self.freq_to_keys[freq + 1][key] = True
+        
+    def _evict(self):
+        """Evict the least frequently used key."""
+        # Get least frequent key (first in OrderedDict = oldest among ties)
+        evict_key = next(iter(self.freq_to_keys[self.min_frequency]))
+        
+        # Remove from all data structures
+        del self.freq_to_keys[self.min_frequency][evict_key]
+        del self.cache[evict_key] 
+        del self.frequencies[evict_key]
+        
+    def clear(self):
+        """Clear all cache data."""
+        self.cache.clear()
+        self.frequencies.clear()
+        self.freq_to_keys.clear()
+        self.min_frequency = 1
+        
+    def stats(self):
+        """Get cache statistics."""
+        total_accesses = sum(self.frequencies.values())
+        return {
+            'cache_type': 'LFU',
+            'cache_size': len(self.cache),
+            'max_size': self.maxsize,
+            'total_accesses': total_accesses,
+            'unique_keys': len(self.cache),
+            'avg_frequency': total_accesses / len(self.cache) if len(self.cache) > 0 else 0,
+            'min_frequency': self.min_frequency
+        }
+
+# Global LFU caches for expensive operations
+_COMPANY_PROFILE_CACHE = LFUCache(maxsize=1000)  # Keep 1000 most popular company profiles
+_GPT_PEERS_CACHE = LFUCache(maxsize=500)         # Keep 500 most popular GPT peer lists
 
 def cache_company_profile(func):
     """
-    Decorator to cache fetch_profile results.
+    LFU cache decorator for company profile fetching.
     
-    This decorator caches FMP API company profile lookups in memory for the session.
-    Company profiles are relatively stable, so caching provides significant performance
-    improvements for repeated proxy generation operations.
+    Uses LFU (Least Frequently Used) eviction - keeps most accessed company
+    profiles in memory. Popular stocks like AAPL, MSFT stay cached while
+    obscure stocks get evicted.
     
     Performance Impact:
     - First call: ~200ms (FMP API call)
-    - Subsequent calls: ~0.001ms (memory lookup)
-    - Typical speedup: 200x faster for cached results
-    
-    Cache Management:
-    - Cache persists for the lifetime of the Python process
-    - Can be cleared via clear_company_profile_cache()
-    - Memory usage: ~1KB per company profile
+    - Frequent calls: ~0.001ms (LFU cache hit)
+    - Cross-user benefit: Popular stocks cached for all users
+    - Memory bounded: Max 1000 profiles (~5MB)
     """
     @functools.wraps(func)
     def wrapper(ticker):
         # Create cache key
         cache_key = f"profile_{ticker.upper()}"
         
-        # Check cache first
-        if cache_key in _COMPANY_PROFILE_CACHE:
-            return _COMPANY_PROFILE_CACHE[cache_key]
+        # Check LFU cache first
+        cached_result = _COMPANY_PROFILE_CACHE.get(cache_key)
+        if cached_result is not None:
+            return cached_result
         
         # Cache miss - call FMP API
         result = func(ticker)
         
-        # Store result in cache
-        _COMPANY_PROFILE_CACHE[cache_key] = result
+        # Store result in LFU cache
+        _COMPANY_PROFILE_CACHE.put(cache_key, result)
         return result
     
     return wrapper
 
 def cache_gpt_peers(func):
     """
-    Decorator to cache GPT peer generation results.
+    LFU cache decorator for GPT peer generation.
     
-    This decorator caches GPT API calls for subindustry peer generation in memory
-    for the session. Since GPT calls are expensive (time + cost), this provides
-    massive performance improvements for repeated proxy generation.
+    Uses LFU (Least Frequently Used) eviction - keeps most accessed GPT peer
+    results in memory. Popular stocks get cached while obscure stocks get evicted.
     
     Performance Impact:
-    - First call: ~3-5 seconds + $0.01 (GPT API call)
-    - Subsequent calls: ~0.001ms + $0.00 (memory lookup)
-    - Typical speedup: 3000x faster + cost savings for cached results
-    
-    Cache Management:
-    - Cache persists for the lifetime of the Python process
-    - Can be cleared via clear_gpt_peers_cache()
-    - Memory usage: ~2KB per peer list
-    - Restart Python to clear cache and test new GPT prompts
+    - First call: ~3-5 seconds (GPT API call + $0.01-0.02 cost)
+    - Frequent calls: ~0.001ms (LFU cache hit)  
+    - Cost savings: Popular stocks cached across all users
+    - Memory bounded: Max 500 peer lists (~1MB)
     """
     @functools.wraps(func)
     def wrapper(ticker, start=None, end=None):
@@ -81,44 +174,53 @@ def cache_gpt_peers(func):
         # Hash the cache data to create unique key
         cache_key = hashlib.md5(json.dumps(cache_data, sort_keys=True).encode()).hexdigest()
         
-        # Check cache first
-        if cache_key in _GPT_PEERS_CACHE:
-            return _GPT_PEERS_CACHE[cache_key]
+        # Check LFU cache first
+        cached_result = _GPT_PEERS_CACHE.get(cache_key)
+        if cached_result is not None:
+            return cached_result
         
         # Cache miss - call GPT API
         result = func(ticker, start, end)
         
-        # Store result in cache
-        _GPT_PEERS_CACHE[cache_key] = result
+        # Store result in LFU cache
+        _GPT_PEERS_CACHE.put(cache_key, result)
         return result
     
     return wrapper
 
 def clear_company_profile_cache():
-    """Clear the company profile cache."""
-    global _COMPANY_PROFILE_CACHE
+    """Clear the company profile LFU cache."""
     _COMPANY_PROFILE_CACHE.clear()
 
 def clear_gpt_peers_cache():
-    """Clear the GPT peers cache."""
-    global _GPT_PEERS_CACHE
+    """Clear the GPT peers LFU cache."""
     _GPT_PEERS_CACHE.clear()
 
 def clear_all_proxy_caches():
-    """Clear all proxy-related caches."""
+    """Clear all proxy LFU caches."""
     clear_company_profile_cache()
     clear_gpt_peers_cache()
 
 def get_proxy_cache_stats():
-    """Get statistics for all proxy caches."""
+    """Get statistics for all proxy LFU caches."""
+    company_stats = _COMPANY_PROFILE_CACHE.stats()
+    gpt_stats = _GPT_PEERS_CACHE.stats()
+    
     return {
         'company_profiles': {
-            'cache_size': len(_COMPANY_PROFILE_CACHE),
-            'cached_tickers': [key.replace('profile_', '') for key in _COMPANY_PROFILE_CACHE.keys()]
+            **company_stats,
+            'cached_tickers': [key.replace('profile_', '') for key in _COMPANY_PROFILE_CACHE.cache.keys()],
+            'top_frequencies': sorted(
+                [(key.replace('profile_', ''), freq) for key, freq in _COMPANY_PROFILE_CACHE.frequencies.items()],
+                key=lambda x: x[1], reverse=True
+            )[:10]  # Top 10 most accessed tickers
         },
         'gpt_peers': {
-            'cache_size': len(_GPT_PEERS_CACHE),
-            'cache_enabled': True
+            **gpt_stats,
+            'top_frequencies': sorted(
+                _GPT_PEERS_CACHE.frequencies.items(),
+                key=lambda x: x[1], reverse=True
+            )[:5]  # Top 5 most accessed GPT peer requests
         }
     }
 
