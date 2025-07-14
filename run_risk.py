@@ -54,6 +54,63 @@ from core.stock_analysis import analyze_stock
 from core.performance_analysis import analyze_performance
 from core.interpretation import analyze_and_interpret, interpret_portfolio_data
 
+"""
+Risk Analysis CLI & API Interface Module
+
+This module provides DUAL-MODE functions that serve as the primary interface layer for 
+portfolio risk analysis, optimization, and what-if scenarios. Each function supports both 
+Command Line Interface (CLI) and Application Programming Interface (API) usage patterns.
+
+🔄 DUAL-MODE PATTERN
+==================
+
+Every major analysis function follows this pattern:
+
+    function_name(parameters, *, return_data: bool = False)
+
+CLI Mode (default, return_data=False):
+    - Prints formatted analysis directly to stdout
+    - Perfect for terminal usage and scripting
+    - Example: python run_risk.py --portfolio portfolio.yaml
+
+API Mode (return_data=True):
+    - Returns structured dictionary with analysis data + formatted report
+    - Used by service layer, web APIs, and Claude AI integration
+    - Guarantees identical output to CLI mode
+    - Example: result = run_portfolio("portfolio.yaml", return_data=True)
+
+🎯 WHY DUAL-MODE?
+================
+
+This pattern solves the "multiple consumer" challenge:
+- CLI users need formatted text output
+- APIs need structured JSON data  
+- Claude AI needs human-readable reports
+- All must have IDENTICAL analysis logic and formatting
+
+Without dual-mode, we'd need separate functions that could drift apart over time.
+With dual-mode, there's a single source of truth for business logic and formatting.
+
+📋 DUAL-MODE FUNCTIONS
+======================
+
+- run_portfolio(): Portfolio risk analysis with 30+ metrics
+- run_what_if(): What-if scenario analysis and comparison  
+- run_min_variance() / run_max_return(): Portfolio optimization
+- run_stock(): Individual stock risk analysis
+- run_portfolio_performance(): Performance metrics calculation
+
+🏗️ ARCHITECTURE INTEGRATION
+============================
+
+CLI Users:           run_risk.py functions → stdout
+Service Layer:       run_risk.py functions → structured data + formatted reports  
+Web APIs:           Service Layer → JSON responses
+Claude AI:          Service Layer → human-readable formatted reports
+
+For detailed architecture documentation, see: architecture.md
+"""
+
 # ============================================================================
 # EXTRACTION MARKER: core/interpretation.py
 # Extract lines 93-149: run_and_interpret() function

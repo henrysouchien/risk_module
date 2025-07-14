@@ -5,6 +5,7 @@ This document provides a comprehensive overview of the Risk Module's architectur
 ## 📋 Table of Contents
 
 - [System Overview](#system-overview)
+- [Dual-Mode Interface Pattern](#dual-mode-interface-pattern)
 - [Architecture Layers](#architecture-layers)
 - [Data Flow](#data-flow)
 - [Component Details](#component-details)
@@ -44,6 +45,89 @@ The system includes robust data quality validation to prevent unstable factor ca
 For web interface, REST API, and Claude AI chat integration, see:
 - **[Interface README](docs/interfaces/INTERFACE_README.md)** - User guide for REST API, Claude chat, and web interface
 - **[Interface Architecture](docs/interfaces/INTERFACE_ARCHITECTURE.md)** - Technical architecture of the interface layer
+
+## 🔄 Dual-Mode Interface Pattern
+
+A critical architectural pattern that enables **multiple consumer types** (CLI, API, Claude AI) to access the same core business logic with **guaranteed output consistency**.
+
+### The Challenge
+
+The system must support three fundamentally different consumption patterns:
+- **CLI Users**: `python run_risk.py --portfolio portfolio.yaml` → formatted text output
+- **API Clients**: `POST /api/portfolio-analysis` → structured JSON data
+- **Claude AI**: `run_portfolio_analysis()` → human-readable formatted reports
+
+### The Solution: Dual-Mode Functions
+
+All primary analysis functions in `run_risk.py` support both **CLI mode** (default) and **API mode** (`return_data=True`):
+
+```python
+def run_portfolio(filepath: str, *, return_data: bool = False):
+    """Portfolio analysis with dual-mode support.
+    
+    CLI Mode (default):
+        Prints formatted analysis to stdout for terminal users
+        
+    API Mode (return_data=True):
+        Returns structured data + formatted report for programmatic use
+    """
+    # Single source of truth for business logic
+    portfolio_summary = build_portfolio_view(...)
+    risk_checks = analyze_risk_limits(...)
+    
+    if return_data:
+        # API/Service Layer: Return structured data + formatted report
+        return {
+            "portfolio_summary": portfolio_summary,
+            "risk_analysis": risk_checks,
+            "formatted_report": formatted_output,  # Same text as CLI
+            "analysis_metadata": metadata
+        }
+    else:
+        # CLI: Print formatted output directly
+        print(formatted_output)
+```
+
+### Benefits
+
+1. **Consistency Guarantee**: CLI and API use identical business logic and formatting
+2. **Single Maintenance Point**: One function serves all consumers
+3. **Performance**: No JSON parsing overhead for CLI users
+4. **Type Safety**: Service layer gets structured data for programmatic use
+
+### Usage Patterns
+
+**CLI Usage:**
+```bash
+python run_risk.py --portfolio portfolio.yaml
+# Prints formatted analysis to terminal
+```
+
+**Service Layer Usage:**
+```python
+from run_risk import run_portfolio
+
+# Get structured data + formatted report
+result = run_portfolio("portfolio.yaml", return_data=True)
+portfolio_vol = result["portfolio_summary"]["volatility_annual"]
+human_report = result["formatted_report"]
+```
+
+**Claude AI Usage:**
+```python
+# Claude Function Executor calls service layer
+result = portfolio_service.analyze_portfolio(portfolio_data)
+claude_sees = result.to_formatted_report()  # Same text as CLI
+```
+
+### Dual-Mode Functions
+
+All major analysis functions follow this pattern:
+- `run_portfolio()` - Portfolio risk analysis
+- `run_what_if()` - Scenario analysis  
+- `run_min_variance()` / `run_max_return()` - Portfolio optimization
+- `run_stock()` - Individual stock analysis
+- `run_portfolio_performance()` - Performance metrics
 
 ## 🏗️ Architecture Layers
 

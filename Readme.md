@@ -101,6 +101,13 @@ python3 show_api_output.py performance  # Performance metrics
 python3 show_api_output.py health       # API health check
 ```
 
+### **Architecture Documentation**
+
+📚 **For Developers**: Detailed documentation on the dual-mode pattern and architecture:
+
+- **[architecture.md](architecture.md)** - Complete architectural documentation  
+- **[run_risk.py](run_risk.py)** - See module docstring for dual-mode pattern details
+
 ## 🌐 Interface Layer
 
 For web interface, REST API, and Claude AI chat integration, see:
