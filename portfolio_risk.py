@@ -785,7 +785,9 @@ def calculate_portfolio_performance_metrics(
             from data_loader import fetch_monthly_treasury_rates
             treasury_rates = fetch_monthly_treasury_rates("month3", start_date, end_date)
             risk_free_rate = treasury_rates.mean() / 100  # Convert percentage to decimal
-        except:
+        except Exception as e:
+            print(f"⚠️  Treasury rate fetch failed: {type(e).__name__}: {e}")
+            print(f"   Using 4% default risk-free rate")
             risk_free_rate = 0.04  # 4% default if can't fetch
     
     risk_free_monthly = risk_free_rate / 12
@@ -834,7 +836,9 @@ def calculate_portfolio_performance_metrics(
             beta = model.params.iloc[1]           # Use .iloc for position-based access
             alpha_annual = alpha_monthly * 12
             r_squared = model.rsquared
-        except:
+        except Exception as e:
+            print(f"⚠️  Regression failed for {benchmark_ticker}: {type(e).__name__}: {e}")
+            print(f"   Using fallback values: alpha=0, beta=1, r²=0")
             alpha_annual = 0
             beta = 1
             r_squared = 0

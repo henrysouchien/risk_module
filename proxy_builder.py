@@ -586,8 +586,9 @@ def filter_valid_tickers(
             if len(prices) >= target_obs:
                 good.append(sym.upper())
                 
-        except Exception:
+        except Exception as e:
             # Any fetch failure (network, malformed payload, etc.) → skip
+            print(f"⚠️  Failed to validate ticker {sym}: {type(e).__name__}: {e}")
             continue
 
     return good

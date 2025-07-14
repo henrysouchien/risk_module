@@ -54,6 +54,7 @@ def get_cash_positions():
             return set(cash_map.get("proxy_by_currency", {}).values())
     except FileNotFoundError:
         # Fallback to common cash proxies
+        print("⚠️  cash_map.yaml not found, using default cash proxies")
         return {"SGOV", "ESTR", "IB01", "CASH", "USD"}
 
 cash_positions = get_cash_positions()

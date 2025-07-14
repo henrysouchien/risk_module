@@ -21,7 +21,8 @@ def _hash(parts: Iterable[str | int | float]) -> str:
 def _safe_load(path: Path) -> Optional[pd.DataFrame]:
     try:
         return pd.read_parquet(path)
-    except (EmptyDataError, ParserError, OSError, ValueError):
+    except (EmptyDataError, ParserError, OSError, ValueError) as e:
+        print(f"⚠️  Cache file corrupted, deleting: {path.name} ({type(e).__name__}: {e})")
         path.unlink(missing_ok=True)          # drop corrupt file
         return None
 
