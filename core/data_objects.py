@@ -1,26 +1,16 @@
 """
 Core Data Objects Module
 
-Enterprise-grade data structures for portfolio and stock analysis with comprehensive validation.
+Data structures for portfolio and stock analysis with input validation and caching.
 
-This module provides structured data containers that serve as the foundation for all
-risk analysis operations in the system. These objects handle input validation,
-format standardization, caching, and provide type-safe interfaces for analysis functions.
+This module provides structured data containers for risk analysis operations.
+These objects handle input validation, format standardization, and caching.
 
-Key Features:
-- **Multi-Format Input Support**: Handles shares, dollars, percentages, and weights seamlessly
-- **Automatic Validation**: Input validation with meaningful error messages
-- **Smart Format Detection**: Automatically detects and converts between input formats
-- **Caching Infrastructure**: Built-in cache key generation for performance optimization
-- **Type Safety**: Comprehensive type hints and dataclass validation
-- **Serialization Support**: YAML serialization for configuration management
+Classes:
+- StockData: Individual stock analysis configuration with factor model support
+- PortfolioData: Portfolio analysis configuration with multi-format input handling
 
-Core Classes:
-- **StockData**: Individual stock analysis configuration with factor model support
-- **PortfolioData**: Portfolio analysis configuration with multi-format input handling
-
-Architecture Position: Data Layer → Service Layer → Routes
-Usage: Foundation objects for all portfolio and stock analysis operations throughout the system.
+Usage: Foundation objects for portfolio and stock analysis operations.
 """
 
 from dataclasses import dataclass, field
@@ -36,48 +26,26 @@ import os
 @dataclass
 class StockData:
     """
-    Individual stock analysis configuration with comprehensive parameter validation and caching.
+    Individual stock analysis configuration with parameter validation and caching.
     
-    This data container provides structured input for stock analysis operations, supporting
-    both simple market regression analysis and complex multi-factor models. It handles
-    parameter validation, format standardization, and cache key generation for performance
-    optimization across the analysis pipeline.
+    This data container provides structured input for stock analysis operations,
+    supporting both single-factor (market) and multi-factor analysis models.
     
-    Key Features:
-    - **Flexible Analysis Types**: Supports single-factor (market) and multi-factor analysis
-    - **Factor Proxy Integration**: Seamless integration with portfolio factor configurations
-    - **Automatic Validation**: Ticker normalization and parameter validation
-    - **Caching Support**: Built-in cache key generation for performance optimization
-    - **Multiple Construction Methods**: Class methods for different initialization patterns
-    - **Type Safety**: Comprehensive type hints and dataclass validation
+    Parameters:
+    - ticker: Stock symbol (automatically normalized to uppercase)
+    - start_date/end_date: Optional analysis window
+    - factor_proxies: Optional factor model configuration
+    - yaml_path: Optional portfolio YAML path for factor proxy lookup
     
-    Analysis Configuration:
-    - **Ticker**: Stock symbol (automatically normalized to uppercase)
-    - **Date Range**: Optional start/end dates for analysis window
-    - **Factor Proxies**: Optional factor model configuration for multi-factor analysis
-    - **YAML Integration**: Optional portfolio YAML path for factor proxy lookup
-    
-    Usage Patterns:
-    1. **Simple Analysis**: Basic market regression with ticker and date range
-    2. **Multi-Factor Analysis**: Complex factor models with explicit factor proxies
-    3. **Portfolio Integration**: Factor proxy inheritance from portfolio configuration
+    Construction methods:
+    - from_ticker(): Basic market regression analysis
+    - from_yaml_config(): Inherits factor proxies from portfolio YAML
+    - from_factor_proxies(): Explicit factor model configuration
     
     Example:
-        ```python
-        # Simple market regression analysis
-        stock_data = StockData("AAPL", start_date="2020-01-01", end_date="2023-12-31")
-        
-        # Multi-factor analysis with explicit factor proxies
-        factor_proxies = {"market": "SPY", "growth": "VUG", "value": "VTV"}
-        stock_data = StockData.from_factor_proxies("AAPL", factor_proxies)
-        
-        # Portfolio-integrated analysis
-        stock_data = StockData.from_yaml_config("AAPL", "portfolio.yaml")
-        
-        # Check analysis type
-        has_factors = stock_data.has_factor_analysis()  # True/False
-        cache_key = stock_data.get_cache_key()  # For caching
-        ```
+        stock_data = StockData.from_ticker("AAPL", "2020-01-01", "2023-12-31")
+        has_factors = stock_data.has_factor_analysis()
+        cache_key = stock_data.get_cache_key()
     """
     
     # Core stock analysis parameters
@@ -100,16 +68,8 @@ class StockData:
         """
         Validate and normalize stock data after initialization.
         
-        This method is automatically called after dataclass initialization to perform
-        validation, normalization, and setup of derived attributes. It ensures data
-        integrity and prepares the object for analysis operations.
-        
-        Validation Steps:
-        1. Validates ticker is not empty
-        2. Normalizes ticker to uppercase format
-        3. Sets default analysis name if not provided
-        4. Generates cache key for performance optimization
-        5. Records creation timestamp
+        Validates ticker, normalizes to uppercase, sets default analysis name,
+        and generates cache key.
         
         Raises:
             ValueError: If ticker is empty or None
@@ -132,19 +92,8 @@ class StockData:
         """
         Get the cache key for this stock analysis configuration.
         
-        The cache key is a unique identifier based on all analysis parameters,
-        enabling efficient caching of analysis results. Changes to any parameter
-        will result in a different cache key, ensuring cache consistency.
-        
         Returns:
-            str: MD5 hash of analysis parameters for cache identification
-            
-        Cache Key Components:
-            - ticker: Stock symbol
-            - start_date: Analysis start date
-            - end_date: Analysis end date
-            - factor_proxies: Factor model configuration
-            - yaml_path: Portfolio YAML configuration path
+            str: MD5 hash of analysis parameters (ticker, dates, factor_proxies, yaml_path)
         """
         return self._cache_key
     
@@ -325,70 +274,28 @@ class StockData:
 @dataclass
 class PortfolioData:
     """
-    Comprehensive portfolio configuration with multi-format input support and intelligent validation.
+    Portfolio configuration with multi-format input support and validation.
     
-    This enterprise-grade data container handles all portfolio input formats used throughout
-    the system, providing automatic format detection, validation, and standardization. It serves
-    as the foundation for all portfolio analysis operations and ensures consistent data handling
-    across the entire analysis pipeline.
-    
-    Key Features:
-    - **Multi-Format Input Support**: Handles shares, dollars, percentages, and weights seamlessly
-    - **Intelligent Format Detection**: Automatically detects input format and converts appropriately
-    - **Comprehensive Validation**: Input validation with meaningful error messages and corrections
-    - **Standardized Output**: Converts all formats to consistent internal representation
-    - **Caching Infrastructure**: Built-in cache key generation for performance optimization
-    - **YAML Integration**: Full serialization support for configuration management
-    - **Type Safety**: Comprehensive type validation and dataclass integrity checks
+    This data container handles portfolio input formats and provides automatic
+    format detection, validation, and standardization for analysis operations.
     
     Supported Input Formats:
-    1. **Shares/Dollars Format**: {"AAPL": {"shares": 100}, "SPY": {"dollars": 5000}}
-    2. **Percentage Format**: {"AAPL": 25.0, "SPY": 75.0} (must sum to ~100%)
-    3. **Weight Format**: {"AAPL": 0.25, "SPY": 0.75} (must sum to ~1.0)
-    4. **Mixed Format**: {"AAPL": {"shares": 100}, "SPY": {"weight": 0.3}}
+    1. Shares/Dollars: {"AAPL": {"shares": 100}, "SPY": {"dollars": 5000}}
+    2. Percentages: {"AAPL": 25.0, "SPY": 75.0} (must sum to ~100%)
+    3. Weights: {"AAPL": 0.25, "SPY": 0.75} (must sum to ~1.0)
+    4. Mixed: {"AAPL": {"shares": 100}, "SPY": {"weight": 0.3}}
     
-    Portfolio Configuration:
-    - **Portfolio Input**: Raw user-provided portfolio allocation in any supported format
-    - **Date Range**: Analysis start and end dates for historical data
-    - **Expected Returns**: Optional expected return forecasts for optimization
-    - **Factor Proxies**: Factor model configuration for risk analysis
-    - **Metadata**: Portfolio name and caching information
-    
-    Business Logic:
-    1. **Input Detection**: Automatically detects format based on data structure
-    2. **Format Conversion**: Converts to standardized internal representation
-    3. **Validation**: Ensures weights/percentages sum correctly and tickers are valid
-    4. **Caching**: Generates cache keys for performance optimization
-    5. **Serialization**: Supports YAML export for configuration persistence
+    Construction methods:
+    - from_yaml(): Load complete configuration from YAML file
+    - from_holdings(): Create from holdings dictionary with flexible formats
     
     Example:
-        ```python
-        # Create from percentage allocation
         portfolio_data = PortfolioData.from_holdings(
-            holdings={"AAPL": 30.0, "MSFT": 25.0, "GOOGL": 20.0, "SGOV": 25.0},
-            start_date="2020-01-01",
-            end_date="2023-12-31"
+            {"AAPL": 30.0, "MSFT": 25.0, "GOOGL": 20.0, "SGOV": 25.0},
+            "2020-01-01", "2023-12-31"
         )
-        
-        # Create from shares/dollars format
-        holdings = {
-            "AAPL": {"shares": 100},
-            "SPY": {"dollars": 5000},
-            "SGOV": {"weight": 0.25}
-        }
-        portfolio_data = PortfolioData.from_holdings(holdings, "2020-01-01", "2023-12-31")
-        
-        # Load from YAML configuration
-        portfolio_data = PortfolioData.from_yaml("portfolio.yaml")
-        
-        # Access portfolio information
-        tickers = portfolio_data.get_tickers()  # ["AAPL", "MSFT", "GOOGL", "SGOV"]
-        weights = portfolio_data.get_weights()  # {"AAPL": 0.30, "MSFT": 0.25, ...}
-        cache_key = portfolio_data.get_cache_key()  # For caching
-        
-        # Export to YAML
-        portfolio_data.to_yaml("output_portfolio.yaml")
-        ```
+        tickers = portfolio_data.get_tickers()
+        weights = portfolio_data.get_weights()
     """
     
     # Raw portfolio input (as provided by user)
@@ -418,17 +325,8 @@ class PortfolioData:
         """
         Validate and standardize portfolio input after initialization.
         
-        This method is automatically called after dataclass initialization to perform
-        comprehensive validation, format detection, and standardization of portfolio
-        input data. It ensures data integrity and prepares the portfolio for analysis.
-        
-        Processing Steps:
-        1. Validates portfolio input is not empty
-        2. Detects input format (shares/dollars, percentages, weights)
-        3. Converts to standardized internal representation
-        4. Validates allocation sums (100% for percentages, 1.0 for weights)
-        5. Generates cache key for performance optimization
-        6. Records processing timestamp
+        Validates input is not empty, detects format, converts to standardized
+        representation, validates allocation sums, and generates cache key.
         
         Raises:
             ValueError: If portfolio input is empty, invalid format, or allocation sums are incorrect
@@ -533,59 +431,19 @@ class PortfolioData:
     
     def get_tickers(self) -> List[str]:
         """
-        Get list of portfolio tickers in standardized format.
-        
-        Returns all ticker symbols included in the portfolio configuration,
-        extracted from the standardized input format. Useful for validation,
-        iteration, and analysis setup.
+        Get list of portfolio tickers.
         
         Returns:
             List[str]: List of ticker symbols in the portfolio
-            
-        Example:
-            ```python
-            portfolio_data = PortfolioData.from_holdings(
-                {"AAPL": 30.0, "MSFT": 25.0, "GOOGL": 20.0, "SGOV": 25.0},
-                "2020-01-01", "2023-12-31"
-            )
-            tickers = portfolio_data.get_tickers()  # ["AAPL", "MSFT", "GOOGL", "SGOV"]
-            ```
         """
         return list(self.standardized_input.keys())
     
     def get_weights(self) -> Dict[str, float]:
         """
-        Get portfolio weights calculated from standardized input.
-        
-        Returns the portfolio allocation weights as decimal values (summing to 1.0),
-        regardless of the original input format. For shares/dollars format, weights
-        are calculated after portfolio standardization. For percentage/weight formats,
-        weights are extracted directly from the standardized input.
+        Get portfolio weights as decimal values (summing to 1.0).
         
         Returns:
             Dict[str, float]: Portfolio weights as {ticker: weight} mapping
-            
-        Weight Calculation:
-            - Shares/Dollars: Calculated based on market values during standardization
-            - Percentages: Converted from percentages to decimal weights
-            - Weights: Used directly from input
-            
-        Example:
-            ```python
-            # From percentages
-            portfolio_data = PortfolioData.from_holdings(
-                {"AAPL": 30.0, "MSFT": 25.0, "GOOGL": 20.0, "SGOV": 25.0},
-                "2020-01-01", "2023-12-31"
-            )
-            weights = portfolio_data.get_weights()  # {"AAPL": 0.30, "MSFT": 0.25, ...}
-            
-            # From shares/dollars (after standardization)
-            portfolio_data = PortfolioData.from_holdings(
-                {"AAPL": {"shares": 100}, "SPY": {"dollars": 5000}},
-                "2020-01-01", "2023-12-31"
-            )
-            weights = portfolio_data.get_weights()  # Calculated from market values
-            ```
         """
         if self.weights is not None:
             return self.weights
@@ -603,34 +461,8 @@ class PortfolioData:
         """
         Get the cache key for this portfolio configuration.
         
-        The cache key is a unique identifier based on all portfolio parameters,
-        enabling efficient caching of analysis results across the system. Changes
-        to any parameter will result in a different cache key, ensuring cache
-        consistency and preventing stale data issues.
-        
         Returns:
             str: MD5 hash of portfolio parameters for cache identification
-            
-        Cache Key Components:
-            - portfolio_input: Standardized portfolio allocation
-            - start_date: Analysis start date
-            - end_date: Analysis end date
-            - expected_returns: Expected return forecasts
-            - stock_factor_proxies: Factor model configuration
-            
-        Example:
-            ```python
-            portfolio_data = PortfolioData.from_holdings(
-                {"AAPL": 30.0, "MSFT": 25.0}, "2020-01-01", "2023-12-31"
-            )
-            cache_key = portfolio_data.get_cache_key()  # "a1b2c3d4e5f6..."
-            
-            # Different allocation -> different cache key
-            portfolio_data2 = PortfolioData.from_holdings(
-                {"AAPL": 25.0, "MSFT": 30.0}, "2020-01-01", "2023-12-31"
-            )
-            cache_key2 = portfolio_data2.get_cache_key()  # "f6e5d4c3b2a1..."
-            ```
         """
         return self._cache_key
     
@@ -654,44 +486,11 @@ class PortfolioData:
         """
         Create PortfolioData from YAML configuration file.
         
-        This method loads a complete portfolio configuration from a YAML file,
-        including portfolio allocation, date ranges, expected returns, and factor
-        proxies. The YAML file should contain all necessary parameters for
-        portfolio analysis.
-        
         Args:
             yaml_path (str): Path to YAML configuration file
             
         Returns:
             PortfolioData: Complete portfolio configuration loaded from YAML
-            
-        Required YAML Structure:
-            ```yaml
-            portfolio_input:
-              AAPL: 30.0
-              MSFT: 25.0
-              GOOGL: 20.0
-              SGOV: 25.0
-            start_date: "2020-01-01"
-            end_date: "2023-12-31"
-            expected_returns:
-              AAPL: 0.12
-              MSFT: 0.10
-            stock_factor_proxies:
-              market: SPY
-              growth: VUG
-            ```
-            
-        Example:
-            ```python
-            # Load complete portfolio configuration
-            portfolio_data = PortfolioData.from_yaml("portfolio.yaml")
-            
-            # Access loaded configuration
-            tickers = portfolio_data.get_tickers()
-            weights = portfolio_data.get_weights()
-            expected_returns = portfolio_data.expected_returns
-            ```
         """
         with open(yaml_path, 'r') as f:
             config = yaml.safe_load(f)
@@ -713,10 +512,6 @@ class PortfolioData:
         """
         Create PortfolioData from holdings dictionary with flexible input formats.
         
-        This is the primary method for creating portfolio configurations from Python
-        dictionaries. It automatically detects and handles multiple input formats,
-        making it easy to create portfolios from various data sources.
-        
         Args:
             holdings (Dict[str, Union[float, Dict]]): Portfolio allocation in any supported format
             start_date (str): Analysis start date in YYYY-MM-DD format
@@ -726,37 +521,6 @@ class PortfolioData:
             
         Returns:
             PortfolioData: Complete portfolio configuration with standardized input
-            
-        Supported Holdings Formats:
-            - Percentages: {"AAPL": 30.0, "MSFT": 25.0, "GOOGL": 20.0, "SGOV": 25.0}
-            - Weights: {"AAPL": 0.30, "MSFT": 0.25, "GOOGL": 0.20, "SGOV": 0.25}
-            - Shares/Dollars: {"AAPL": {"shares": 100}, "SPY": {"dollars": 5000}}
-            - Mixed: {"AAPL": {"shares": 100}, "SPY": {"weight": 0.30}}
-            
-        Example:
-            ```python
-            # From percentage allocation
-            portfolio_data = PortfolioData.from_holdings(
-                holdings={"AAPL": 30.0, "MSFT": 25.0, "GOOGL": 20.0, "SGOV": 25.0},
-                start_date="2020-01-01",
-                end_date="2023-12-31"
-            )
-            
-            # From shares/dollars with expected returns
-            holdings = {"AAPL": {"shares": 100}, "SPY": {"dollars": 5000}}
-            expected_returns = {"AAPL": 0.12, "SPY": 0.08}
-            portfolio_data = PortfolioData.from_holdings(
-                holdings, "2020-01-01", "2023-12-31", expected_returns
-            )
-            
-            # With factor proxies for risk analysis
-            factor_proxies = {"market": "SPY", "growth": "VUG"}
-            portfolio_data = PortfolioData.from_holdings(
-                {"AAPL": 30.0, "MSFT": 25.0, "GOOGL": 20.0, "SGOV": 25.0},
-                "2020-01-01", "2023-12-31",
-                stock_factor_proxies=factor_proxies
-            )
-            ```
         """
         return cls(
             portfolio_input=holdings,
@@ -771,43 +535,8 @@ class PortfolioData:
         """
         Save portfolio data to YAML configuration file.
         
-        This method serializes the complete portfolio configuration to a YAML file,
-        including standardized portfolio input, date ranges, expected returns, and
-        factor proxies. The resulting YAML file can be used to recreate the exact
-        same portfolio configuration using from_yaml().
-        
         Args:
             output_path (str): Path where YAML file will be saved
-            
-        Generated YAML Structure:
-            ```yaml
-            portfolio_input:
-              AAPL: {weight: 0.30}
-              MSFT: {weight: 0.25}
-              GOOGL: {weight: 0.20}
-              SGOV: {weight: 0.25}
-            start_date: "2020-01-01"
-            end_date: "2023-12-31"
-            expected_returns:
-              AAPL: 0.12
-              MSFT: 0.10
-            stock_factor_proxies:
-              market: SPY
-              growth: VUG
-            ```
-            
-        Example:
-            ```python
-            # Create portfolio and save to YAML
-            portfolio_data = PortfolioData.from_holdings(
-                {"AAPL": 30.0, "MSFT": 25.0, "GOOGL": 20.0, "SGOV": 25.0},
-                "2020-01-01", "2023-12-31"
-            )
-            portfolio_data.to_yaml("my_portfolio.yaml")
-            
-            # Load back from YAML
-            loaded_portfolio = PortfolioData.from_yaml("my_portfolio.yaml")
-            ```
         """
         config = {
             "portfolio_input": self.standardized_input,
