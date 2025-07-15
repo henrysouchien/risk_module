@@ -7,6 +7,7 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 ## 🚀 Features
 
 - **Multi-User Database Support**: PostgreSQL-based multi-user system with secure user isolation and session management
+- **Multi-Currency Support**: Native support for USD, EUR, GBP, JPY portfolios with currency preservation
 - **Multi-Factor Risk Analysis**: Understand how market forces affect your portfolio to make better allocation decisions
 - **Portfolio Risk Decomposition**: See which positions drive your risk to know where to focus your risk management
 - **Comprehensive Risk Scoring**: Credit-score-like rating (0-100) with detailed component analysis and historical stress testing
@@ -27,39 +28,166 @@ The Risk Module supports both file-based and database-based operations through a
 **Database Mode Features:**
 - **PostgreSQL Backend**: Production-ready multi-user database with connection pooling
 - **User Isolation**: Complete data separation between users with secure session management
+- **Multi-Currency Support**: Native support for USD, EUR, GBP, JPY, and other currencies
 - **Performance Optimization**: 9.4ms average query response time with connection pooling
 - **Fallback Mechanisms**: Automatic fallback to file mode when database is unavailable
-- **Cash Mapping**: Dynamic cash position mapping with database storage
+- **Cash Position Mapping**: Dynamic cash position mapping with preserved currency identifiers
 - **Comprehensive Testing**: 95% test coverage with performance, security, and reliability validation
 
 **Database Schema:**
 ```sql
--- Users table for authentication and session management
+-- Users table - Multi-provider authentication support
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    username VARCHAR(255) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    name VARCHAR(255),
+    tier VARCHAR(50) DEFAULT 'public',           -- 'public', 'registered', 'paid'
+    
+    -- Multi-provider auth support
+    google_user_id VARCHAR(255) UNIQUE,          -- Google 'sub' field
+    github_user_id VARCHAR(255) UNIQUE,          -- GitHub user ID
+    apple_user_id VARCHAR(255) UNIQUE,           -- Apple Sign-In user ID
+    auth_provider VARCHAR(50) NOT NULL DEFAULT 'google',
+    
+    -- API access support
+    api_key_hash VARCHAR(255) UNIQUE,            -- For programmatic access
+    api_key_expires_at TIMESTAMP,                -- API key expiration
+    
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Portfolios table for portfolio configurations
+-- Portfolios table - Portfolio configurations with date ranges
 CREATE TABLE portfolios (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    config JSONB NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    start_date DATE NOT NULL,                    -- From portfolio.yaml
+    end_date DATE NOT NULL,                      -- From portfolio.yaml
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, name)
 );
 
--- Sessions table for session management
-CREATE TABLE sessions (
+-- Positions table - Multi-currency position storage
+-- 
+-- Multi-currency design:
+-- - Each position maintains its own currency (USD, EUR, GBP, etc.)
+-- - Cash positions use standardized ticker format: CUR:USD, CUR:EUR, etc.
+-- - No currency consolidation - each currency stored as separate position
+-- - Database client extracts currency from ticker if missing (CUR:USD → USD)
+CREATE TABLE positions (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
-    session_token VARCHAR(255) UNIQUE NOT NULL,
+    portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    ticker VARCHAR(100) NOT NULL,                -- Stock symbol or cash identifier (CUR:USD, CUR:EUR)
+    quantity DECIMAL(20,8) NOT NULL,             -- Shares for stocks/ETFs, cash amount for cash positions
+    currency VARCHAR(10) NOT NULL,               -- Position currency (USD, EUR, GBP, JPY, etc.)
+    type VARCHAR(20),                            -- Position type: "cash", "equity", "etf", "crypto", "bond"
+    
+    -- Cost basis and tax tracking
+    cost_basis DECIMAL(20,8),                    -- Average cost per share (NULL for cash positions)
+    purchase_date DATE,                          -- For tax lot tracking
+    
+    -- Position metadata
+    account_id VARCHAR(100),                     -- Broker account identifier
+    position_source VARCHAR(50),                 -- Data source: "plaid", "manual", "csv_import", "api"
+    position_status VARCHAR(20) DEFAULT 'active', -- Status: "active", "closed", "pending"
+    
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    
+    -- Same ticker allowed from different sources (Plaid + manual entry)
+    UNIQUE(portfolio_id, ticker, position_source)
+);
+
+-- Risk limits table - Risk tolerance configuration
+CREATE TABLE risk_limits (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+    portfolio_id INT REFERENCES portfolios(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,                  -- "Conservative", "Aggressive", "Custom_2024"
+    
+    -- Portfolio limits
+    max_volatility DECIMAL(5,4),                -- portfolio_limits.max_volatility
+    max_loss DECIMAL(5,4),                      -- portfolio_limits.max_loss
+    
+    -- Concentration limits
+    max_single_stock_weight DECIMAL(5,4),       -- concentration_limits.max_single_stock_weight
+    
+    -- Variance limits
+    max_factor_contribution DECIMAL(5,4),       -- variance_limits.max_factor_contribution
+    max_market_contribution DECIMAL(5,4),       -- variance_limits.max_market_contribution
+    max_industry_contribution DECIMAL(5,4),     -- variance_limits.max_industry_contribution
+    
+    -- Factor limits
+    max_single_factor_loss DECIMAL(5,4),        -- max_single_factor_loss
+    
+    -- Additional settings (flexible storage)
+    additional_settings JSONB,
+    
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    
+    UNIQUE(user_id, portfolio_id, name)
+);
+
+-- Factor proxies table - Factor model configuration
+-- 
+-- Risk analysis uses factor models to decompose stock returns into systematic factors.
+-- Each stock gets assigned proxy ETFs for different factor exposures:
+-- - market_proxy: Broad market exposure (SPY, ACWX)
+-- - momentum_proxy: Momentum factor exposure (MTUM, IMTM)  
+-- - value_proxy: Value factor exposure (VTV, VLUE)
+-- - industry_proxy: Industry-specific exposure (XLK, XLV, etc.)
+-- - subindustry_peers: Array of similar companies for peer analysis
+CREATE TABLE factor_proxies (
+    id SERIAL PRIMARY KEY,
+    portfolio_id INT REFERENCES portfolios(id) ON DELETE CASCADE,
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+    ticker VARCHAR(100) NOT NULL,               -- Stock ticker this proxy set applies to
+    market_proxy VARCHAR(20),                   -- Market factor proxy (SPY, ACWX)
+    momentum_proxy VARCHAR(20),                 -- Momentum factor proxy (MTUM, IMTM)
+    value_proxy VARCHAR(20),                    -- Value factor proxy (VTV, VLUE)
+    industry_proxy VARCHAR(20),                 -- Industry factor proxy (XLK, XLV, XLF)
+    subindustry_peers JSONB,                    -- Array of peer tickers for sub-industry analysis
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(portfolio_id, ticker)               -- One proxy set per stock per portfolio
+);
+
+-- Expected returns table - Portfolio optimization data (insert-only versioning)
+-- 
+-- Stores expected return forecasts for portfolio optimization.
+-- Uses insert-only versioning to preserve historical expectations for backtesting.
+CREATE TABLE expected_returns (
+    id SERIAL PRIMARY KEY,
+    ticker VARCHAR(100) NOT NULL,               -- Stock ticker
+    expected_return DECIMAL(8,4) NOT NULL,      -- Annual return as decimal (0.12 = 12%)
+    effective_date DATE NOT NULL,               -- When this expectation was set (for versioning)
+    data_source VARCHAR(50) DEFAULT 'calculated', -- Source: 'user_input', 'calculated', 'market_data'
+    confidence_level DECIMAL(3,2),             -- Confidence in forecast (0.0-1.0)
+    created_at TIMESTAMP DEFAULT NOW(),
+    
+    UNIQUE(ticker, effective_date)              -- One expectation per ticker per date
+);
+
+-- User sessions table - Session management
+CREATE TABLE user_sessions (
+    session_id VARCHAR(255) PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW(),
     expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    last_accessed TIMESTAMP DEFAULT NOW()
 );
 ```
+
+**Multi-Currency Architecture:**
+- **Currency Preservation**: Original cash identifiers (CUR:USD, CUR:EUR) preserved in database
+- **No Consolidation**: Each currency stored as separate position, no automatic conversion
+- **Position Source Tracking**: Supports multiple data sources per ticker (Plaid + manual entry)
+- **Dynamic Proxy Mapping**: Cash-to-ETF mapping applied at analysis time, not storage time
+- **Fallback Logic**: Automatic currency extraction from ticker format when currency field missing
 
 **Environment Configuration:**
 ```bash
@@ -68,7 +196,7 @@ USE_DATABASE=true
 STRICT_DATABASE_MODE=false  # Allow fallback to file mode
 
 # Database connection
-DATABASE_URL=postgresql://user:password@localhost:5432/risk_module
+DATABASE_URL=postgresql://user:password@localhost:5432/risk_module_db
 ```
 
 ### **Clean 3-Layer Architecture**
@@ -174,6 +302,7 @@ cd tests && python3 test_fallback_mechanisms.py     # Fallback tests
 - **Security Tests**: User isolation validation, session management, data leakage prevention
 - **Reliability Tests**: Fallback mechanisms, error recovery, transaction rollback
 - **Integration Tests**: Cash mapping validation, batch operations, memory usage monitoring
+- **Multi-Currency Tests**: Currency preservation pipeline, Plaid API → Database alignment, edge case handling
 
 ### **Architecture Documentation**
 
@@ -1073,6 +1202,23 @@ run_max_return("portfolio.yaml")    # Maximum return portfolio
 results = run_risk_score_analysis("portfolio.yaml", "risk_limits.yaml")
 ```
 
+### **Multi-Currency Pipeline Testing**
+
+The system includes comprehensive multi-currency validation:
+
+**Pipeline Validation:**
+- **Currency Preservation**: Verifies original cash identifiers (CUR:USD, CUR:EUR) are preserved in database
+- **No Consolidation**: Confirms each currency is stored as separate position without automatic conversion
+- **Edge Case Handling**: Tests fallback logic for missing currency data with appropriate warnings
+- **Multi-Source Support**: Validates multiple data sources per ticker (Plaid + manual entry)
+- **Database Alignment**: Ensures Plaid API → Database pipeline maintains currency integrity
+
+**Test Scenarios:**
+- **Multi-Currency Portfolios**: AAPL (USD), ASML (EUR), CUR:USD, CUR:EUR, CUR:GBP, CUR:JPY
+- **Currency Extraction**: Automatic currency detection from ticker format (CUR:USD → USD)
+- **Fallback Logic**: Warning system for edge cases like 'CASH_EUR', 'GBPCASH' formats
+- **Database Persistence**: Validates currency preservation across database save/load cycles
+
 Each provides actionable insights to help you make better investment decisions.
 
 ## 📁 Complete Project Structure
@@ -1091,11 +1237,11 @@ risk_module/
 ### Database Infrastructure
 ```
 ├── inputs/
-│   ├── database_client.py      # PostgreSQL client with connection pooling
-│   ├── portfolio_manager.py    # Dual-mode portfolio operations
-│   ├── exceptions.py           # Database-specific exceptions
+│   ├── database_client.py      # PostgreSQL client with connection pooling and multi-currency support
+│   ├── portfolio_manager.py    # Dual-mode portfolio operations (file/database)
+│   ├── exceptions.py           # Database-specific exceptions and error handling
 │   └── auth_service.py         # User authentication and session management
-├── db_schema.sql               # Database schema definition
+├── db_schema.sql               # Comprehensive database schema with multi-currency support
 └── migrations/                 # Database migration scripts
 ```
 
