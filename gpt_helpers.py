@@ -28,6 +28,11 @@ def interpret_portfolio_risk(diagnostics_text: str) -> str:
     Sends raw printed diagnostics to GPT for layman interpretation.
     """
     # LOGGING: Add OpenAI API request logging and timing here
+    # LOGGING: Add service health monitoring for OpenAI API here
+    # LOGGING: Add critical alert for OpenAI API failures here
+
+    # LOGGING: Add OpenAI response logging with token usage here
+    # LOGGING: Add service health logging for OpenAI API response here
     user_prompt = (
         "You are a professional risk analyst at a hedge fund.\n"
         "I want you to help evaluate my portfolio. I will give you details of the portfolio's risk metrics.\n"

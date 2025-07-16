@@ -279,8 +279,10 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
     True
     """
     # LOGGING: Add portfolio analysis entry logging with timing
+    # LOGGING: Add workflow state logging for risk analysis workflow start here
     # LOGGING: Add user context tracking
     # LOGGING: Add performance monitoring for operations >1s
+    # LOGGING: Add resource usage monitoring for analysis process here
     
     # ─── BUSINESS LOGIC: Call extracted core function ─────────
     analysis_result = analyze_portfolio(filepath)
@@ -355,6 +357,8 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
             "formatted_report": buf.getvalue()
         }
         # LOGGING: Add portfolio analysis completion logging with execution time
+        # LOGGING: Add workflow state logging for risk analysis workflow completion here
+        # LOGGING: Add resource usage monitoring for analysis completion here
     else:
         # CLI MODE: Print formatted output
         display_portfolio_config(config)

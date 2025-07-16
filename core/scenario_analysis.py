@@ -55,6 +55,8 @@ def analyze_scenario(
     # --- load configs ------------------------------------------------------
     config = load_portfolio_config(filepath)
     # LOGGING: Add config loading performance timing here
+    # LOGGING: Add workflow state logging for scenario analysis workflow here
+    # LOGGING: Add resource usage monitoring for scenario analysis here
     with open("risk_limits.yaml", "r") as f:
         risk_config = yaml.safe_load(f)
 
@@ -160,4 +162,5 @@ def analyze_scenario(
     }
     
     # LOGGING: Add scenario analysis completion logging with timing here
+    # LOGGING: Add workflow state logging for scenario analysis workflow completion here
     return result 

@@ -22,6 +22,8 @@ def _safe_load(path: Path) -> Optional[pd.DataFrame]:
     try:
         return pd.read_parquet(path)
     except (EmptyDataError, ParserError, OSError, ValueError) as e:
+        # LOGGING: Add cache file corruption logging
+        # log_critical_alert("cache_file_corrupted", "medium", f"Cache file corrupted: {path.name}", "Delete and regenerate", details={"path": str(path), "error": str(e)})
         print(f"⚠️  Cache file corrupted, deleting: {path.name} ({type(e).__name__}: {e})")
         path.unlink(missing_ok=True)          # drop corrupt file
         return None
@@ -46,7 +48,8 @@ def cache_read(
         prefix  = "SPY",
     )
     """
-    # LOGGING: Add cache operation start logging here
+    # LOGGING: Add cache operation start logging
+    # log_portfolio_operation("cache_read", "started", execution_time=0, details={"key": list(key), "cache_dir": str(cache_dir), "prefix": prefix})
     cache_dir = Path(cache_dir).expanduser().resolve()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -56,14 +59,17 @@ def cache_read(
     if path.is_file():
         df = _safe_load(path)
         if df is not None:
-            # LOGGING: Add cache hit logging here
+            # LOGGING: Add cache hit logging
+            # log_portfolio_operation("cache_read", "cache_hit", execution_time=0, details={"key": list(key), "file": fname, "shape": df.shape})
             return df.iloc[:, 0] if df.shape[1] == 1 else df
 
-    # LOGGING: Add cache miss logging here
+    # LOGGING: Add cache miss logging and loader execution
+    # log_portfolio_operation("cache_read", "cache_miss", execution_time=0, details={"key": list(key), "file": fname})
     obj = loader()                                    # cache miss → compute
     df  = obj.to_frame(name=obj.name or "value") if isinstance(obj, pd.Series) else obj
     df.to_parquet(path, engine="pyarrow", compression="zstd", index=True)
-    # LOGGING: Add cache write logging here
+    # LOGGING: Add cache write completion logging
+    # log_portfolio_operation("cache_read", "cache_written", execution_time=0, details={"key": list(key), "file": fname, "shape": df.shape})
     return obj
 
 
@@ -77,6 +83,8 @@ def cache_write(
     """
     Force-write `obj` under a key.  Returns the Path written.
     """
+    # LOGGING: Add cache write operation logging
+    # log_portfolio_operation("cache_write", "started", execution_time=0, details={"key": list(key), "cache_dir": str(cache_dir), "prefix": prefix, "shape": obj.shape})
     cache_dir = Path(cache_dir).expanduser().resolve()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -84,6 +92,8 @@ def cache_write(
     path  = cache_dir / fname
     df    = obj.to_frame(name=obj.name or "value") if isinstance(obj, pd.Series) else obj
     df.to_parquet(path, engine="pyarrow", compression="zstd", index=True)
+    # LOGGING: Add cache write completion logging
+    # log_portfolio_operation("cache_write", "completed", execution_time=0, details={"key": list(key), "file": fname, "path": str(path)})
     return path
 
 
@@ -100,6 +110,8 @@ from datetime import datetime
 from typing import Optional, Union, List, Dict
 from dotenv import load_dotenv
 import os
+import time
+from dotenv import load_dotenv
 
 # Load .env file before accessing environment variables
 load_dotenv()
@@ -129,7 +141,9 @@ def fetch_monthly_close(
     Returns:
         pd.Series: Month-end close prices indexed by date.
     """
-    # LOGGING: Add FMP API data fetch request logging here
+    # LOGGING: Add FMP API data fetch request logging
+    # log_portfolio_operation("fetch_monthly_close", "started", execution_time=0, details={"ticker": ticker, "start_date": start_date, "end_date": end_date})
+    
     # ----- loader (runs only on cache miss) ------------------------------
     def _api_pull() -> pd.Series:
         params = {"symbol": ticker, "apikey": API_KEY, "serietype": "line"}
@@ -138,10 +152,30 @@ def fetch_monthly_close(
         if end_date:
             params["to"]   = pd.to_datetime(end_date).date().isoformat()
     
-        # LOGGING: Add FMP API call logging with timing and rate limiting here
+        # LOGGING: Add FMP API call logging with timing and rate limiting
+        # start_time = time.time()
+        # log_api_request("FMP_API", "historical-price-eod", params, start_time)
+        
         resp = requests.get(f"{BASE_URL}/historical-price-eod/full", params=params, timeout=30)
+        
+        # LOGGING: Add rate limit detection for FMP API
+        # if resp.status_code == 429:
+        #     log_rate_limit_hit(None, "historical-price-eod", "api_calls", None, "free")
+        #     log_service_health("FMP_API", "degraded", time.time() - start_time, {"error": "rate_limited", "status_code": 429})
+        
         resp.raise_for_status()
-        # LOGGING: Add FMP API response logging here
+        
+        # LOGGING: Add service health monitoring for FMP API connection
+        # response_time = time.time() - start_time
+        # log_service_health("FMP_API", "healthy", response_time, user_id=None)
+        # log_api_request("FMP_API", "historical-price-eod", params, start_time, response_time=response_time, success=True)
+        
+        # LOGGING: Add FMP API response processing logging
+        # log_portfolio_operation("fetch_monthly_close", "api_response_processing", execution_time=response_time, details={"ticker": ticker, "status_code": resp.status_code})
+        
+        # LOGGING: Add critical alert for FMP API connection failure (if exception occurs)
+        # log_critical_alert("api_connection_failure", "high", f"FMP API connection failed for {ticker}", "Retry with exponential backoff", details={"symbol": ticker, "endpoint": "historical-price-eod"})
+        
         raw  = resp.json()
         data = raw if isinstance(raw, list) else raw.get("historical", [])
     
@@ -149,6 +183,10 @@ def fetch_monthly_close(
         df["date"] = pd.to_datetime(df["date"])
         df.set_index("date", inplace=True)
         monthly = df.sort_index().resample("ME")["close"].last()
+        
+        # LOGGING: Add data processing completion logging
+        # log_portfolio_operation("fetch_monthly_close", "data_processed", execution_time=0, details={"ticker": ticker, "data_points": len(monthly), "date_range": f"{monthly.index[0]} to {monthly.index[-1]}"})
+        
         return monthly
 
     # ----- call cache layer ---------------------------------------------
@@ -179,6 +217,9 @@ def fetch_monthly_treasury_rates(
     Returns:
         pd.Series: Month-end Treasury rates (as percentages) indexed by date.
     """
+    # LOGGING: Add treasury rates fetch request logging
+    # log_portfolio_operation("fetch_monthly_treasury_rates", "started", execution_time=0, details={"maturity": maturity, "start_date": start_date, "end_date": end_date})
+    
     # ----- loader (runs only on cache miss) ------------------------------
     def _api_pull() -> pd.Series:
         params = {"apikey": API_KEY}
@@ -187,8 +228,27 @@ def fetch_monthly_treasury_rates(
         if end_date:
             params["to"] = pd.to_datetime(end_date).date().isoformat()
         
+        # LOGGING: Add FMP API call logging for treasury rates
+        # start_time = time.time()
+        # log_api_request("FMP_API", "treasury-rates", params, start_time)
+        
         resp = requests.get(f"{BASE_URL}/treasury-rates", params=params, timeout=30)
+        
+        # LOGGING: Add rate limit detection for treasury rates endpoint
+        # if resp.status_code == 429:
+        #     log_rate_limit_hit(None, "treasury-rates", "api_calls", None, "free")
+        #     log_service_health("FMP_API", "degraded", time.time() - start_time, {"error": "rate_limited", "endpoint": "treasury-rates"})
+        
         resp.raise_for_status()
+        
+        # LOGGING: Add service health monitoring for treasury rates API
+        # response_time = time.time() - start_time
+        # log_service_health("FMP_API", "healthy", response_time, user_id=None)
+        # log_api_request("FMP_API", "treasury-rates", params, start_time, response_time=response_time, success=True)
+        
+        # LOGGING: Add critical alert for treasury rates API failure (if exception occurs)
+        # log_critical_alert("api_connection_failure", "high", f"FMP Treasury rates API failed for {maturity}", "Retry with exponential backoff", details={"maturity": maturity, "endpoint": "treasury-rates"})
+        
         raw = resp.json()
         
         # Create DataFrame from API response
@@ -199,6 +259,8 @@ def fetch_monthly_treasury_rates(
         # Extract the specified maturity column
         if maturity not in df.columns:
             available = list(df.columns)
+            # LOGGING: Add critical alert for invalid maturity
+            # log_critical_alert("invalid_treasury_maturity", "medium", f"Treasury maturity '{maturity}' not available", "Use valid maturity from available options", details={"maturity": maturity, "available": available})
             raise ValueError(f"Maturity '{maturity}' not available. Available: {available}")
         
         # Sort by date (API already filtered by date range)
@@ -207,6 +269,10 @@ def fetch_monthly_treasury_rates(
         # Resample to month-end (align with stock prices)
         monthly = df_sorted.resample("ME")[maturity].last()
         monthly.name = f"treasury_{maturity}"
+        
+        # LOGGING: Add treasury rates processing completion logging
+        # log_portfolio_operation("fetch_monthly_treasury_rates", "data_processed", execution_time=0, details={"maturity": maturity, "data_points": len(monthly), "date_range": f"{monthly.index[0]} to {monthly.index[-1]}"})
+        
         return monthly
 
     # ----- call cache layer ---------------------------------------------
@@ -238,6 +304,10 @@ def fetch_monthly_close(         # ← same name seen by callers
     RAM-cached → disk-cached → network price fetch.
     Same signature and behaviour as the original function.
     """
+    # LOGGING: Add LRU cache layer logging
+    # cache_info = fetch_monthly_close.cache_info()
+    # log_performance_metric("lru_cache_fetch_monthly_close", cache_info.hits, cache_info.misses, details={"ticker": ticker, "cache_size": cache_info.currsize, "max_size": cache_info.maxsize})
+    
     return _fetch_monthly_close_disk(ticker, start_date, end_date)
 
 
@@ -251,6 +321,10 @@ def fetch_monthly_treasury_rates(
     RAM-cached → disk-cached → network Treasury rate fetch.
     Same signature and behaviour as the original function.
     """
+    # LOGGING: Add LRU cache layer logging for treasury rates
+    # cache_info = fetch_monthly_treasury_rates.cache_info()
+    # log_performance_metric("lru_cache_fetch_treasury_rates", cache_info.hits, cache_info.misses, details={"maturity": maturity, "cache_size": cache_info.currsize, "max_size": cache_info.maxsize})
+    
     return _fetch_monthly_treasury_rates_disk(maturity, start_date, end_date)
 
 

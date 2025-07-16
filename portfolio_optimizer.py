@@ -748,6 +748,8 @@ def run_min_var(
         - factor beta check DataFrame
     """
     # LOGGING: Add minimum variance optimization start logging
+    # LOGGING: Add workflow state logging for optimization workflow here
+    # LOGGING: Add resource usage monitoring for optimization process here
     # LOGGING: Add optimization algorithm timing
     # LOGGING: Add constraint validation logging
     # LOGGING: Add convergence tracking
@@ -769,6 +771,8 @@ def run_min_var(
         proxies
     )
     # LOGGING: Add minimum variance optimization completion logging
+    # LOGGING: Add workflow state logging for optimization workflow completion here
+    # LOGGING: Add resource usage monitoring for optimization completion here
     return w_opt, risk_tbl, beta_tbl
 
 

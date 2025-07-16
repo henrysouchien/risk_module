@@ -49,6 +49,8 @@ from typing import Dict, Callable, Union
 # Auto-detect cash positions from database (with YAML fallback)
 def get_cash_positions():
     # LOGGING: Add cash position detection logging with data source and timing
+    # LOGGING: Add resource usage monitoring for cache initialization here
+    # LOGGING: Add critical alert for database connection failures here
     try:
         # Try database first
         from inputs.database_client import DatabaseClient
@@ -91,6 +93,11 @@ def standardize_portfolio_input(
         }
     """
     # LOGGING: Add portfolio standardization start logging with input size and format
+    # LOGGING: Add workflow state logging for portfolio standardization workflow here
+    # LOGGING: Add resource usage monitoring for portfolio processing here
+
+    # LOGGING: Add portfolio processing logging with ticker count and validation
+    # LOGGING: Add workflow state logging for portfolio processing completion here
     dollar_exposure = {}
 
     # LOGGING: Add portfolio processing logging with ticker count and validation

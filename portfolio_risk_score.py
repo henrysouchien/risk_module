@@ -1198,6 +1198,8 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
         Path to risk limits configuration file
     """
     # LOGGING: Add risk score analysis start logging
+    # LOGGING: Add workflow state logging for risk score analysis workflow here
+    # LOGGING: Add resource usage monitoring for risk score calculation here
     # LOGGING: Add component score logging
     # LOGGING: Add recommendation generation logging
     # LOGGING: Add score validation logging

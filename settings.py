@@ -6,7 +6,9 @@
 
 # settings.py  
 # LOGGING: Add configuration loading logging
+# LOGGING: Add critical alert for configuration errors here
 # LOGGING: Add environment variable logging
+# LOGGING: Add resource usage monitoring for settings initialization here
 # LOGGING: Add settings validation logging
 # LOGGING: Add configuration change tracking
 PORTFOLIO_DEFAULTS = {
