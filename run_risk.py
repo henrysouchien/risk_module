@@ -112,8 +112,6 @@ For detailed architecture documentation, see: architecture.md
 """
 
 # ============================================================================
-# EXTRACTION MARKER: core/interpretation.py
-# Extract lines 93-149: run_and_interpret() function
 # This handles AI interpretation of portfolio analysis
 # ============================================================================
 def run_and_interpret(portfolio_yaml: str, *, return_data: bool = False):
@@ -160,8 +158,6 @@ def run_and_interpret(portfolio_yaml: str, *, return_data: bool = False):
         return interpretation_result["ai_interpretation"]  # Return GPT summary text (existing behavior)
 
 # ============================================================================
-# EXTRACTION MARKER: core/interpretation.py
-# Extract lines 149-206: interpret_portfolio_output() function
 # This handles AI interpretation of structured portfolio output
 # ============================================================================
 def interpret_portfolio_output(portfolio_output: Dict[str, Any], *, 
@@ -212,10 +208,7 @@ def interpret_portfolio_output(portfolio_output: Dict[str, Any], *,
 
 
 # ============================================================================
-# EXTRACTION MARKER: core/portfolio_analysis.py
-# Extract lines 241-423: run_portfolio() function - CORE BUSINESS LOGIC
-# This is the main portfolio analysis function that should be extracted
-# Keep the dual-mode wrapper here, extract the business logic to core
+# CORE BUSINESS LOGIC
 # ============================================================================
 def run_portfolio(filepath: str, *, return_data: bool = False):
     """
@@ -375,8 +368,7 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
             print(f"{factor:<20} β = {row['portfolio_beta']:+.2f}  ≤ {row['max_allowed_beta']:.2f}  {status}")
 
 # ============================================================================
-# EXTRACTION MARKER: core/scenarios.py
-# Extract lines 423-592: run_what_if() function - WHAT-IF SCENARIO LOGIC
+# WHAT-IF SCENARIO LOGIC
 # This handles what-if scenario analysis
 # ============================================================================
 def run_what_if(
@@ -474,8 +466,7 @@ def run_what_if(
         )
 
 # ============================================================================
-# EXTRACTION MARKER: core/optimization.py
-# Extract lines 635-737: run_min_variance() function - MIN VARIANCE OPTIMIZATION
+# MIN VARIANCE OPTIMIZATION
 # This handles minimum variance portfolio optimization
 # ============================================================================
 def run_min_variance(filepath: str, *, return_data: bool = False):
@@ -550,8 +541,7 @@ def run_min_variance(filepath: str, *, return_data: bool = False):
         print_min_var_report(weights=w, risk_tbl=r, beta_tbl=b)
 
 # ============================================================================
-# EXTRACTION MARKER: core/optimization.py
-# Extract lines 737-860: run_max_return() function - MAX RETURN OPTIMIZATION
+# MAX RETURN OPTIMIZATION
 # This handles maximum return portfolio optimization
 # ============================================================================
 def run_max_return(filepath: str, *, return_data: bool = False):
@@ -640,8 +630,7 @@ def run_max_return(filepath: str, *, return_data: bool = False):
         print_max_return_report(weights=w, risk_tbl=r, df_factors=f_b, df_proxies=p_b)
 
 # ============================================================================
-# EXTRACTION MARKER: core/stock_analysis.py
-# Extract lines 860-991: run_stock() function - STOCK ANALYSIS
+# STOCK ANALYSIS
 # This handles individual stock risk analysis
 # ============================================================================
 def run_stock(
@@ -721,8 +710,7 @@ def run_stock(
             format_stock_metrics(analysis_result["risk_metrics"], "Market Regression (SPY)")
 
 # ============================================================================
-# EXTRACTION MARKER: core/performance.py
-# Extract lines 991-END: run_portfolio_performance() function - PERFORMANCE ANALYSIS
+# PERFORMANCE ANALYSIS
 # This handles portfolio performance calculation and analysis
 # ============================================================================
 def run_portfolio_performance(filepath: str, *, return_data: bool = False):
