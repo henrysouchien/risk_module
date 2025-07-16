@@ -307,12 +307,20 @@ import yaml
 
 def load_exchange_proxy_map(path: str = "exchange_etf_proxies.yaml") -> dict:
     """
-    Load exchange-level ETF proxy mappings from a structured YAML file.
+    Load exchange-level ETF proxy mappings from database (with YAML fallback).
     Each exchange maps to:
       { market: ETF, momentum: ETF, value: ETF }
     """
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
+    try:
+        # Try database first
+        from inputs.database_client import DatabaseClient
+        db_client = DatabaseClient()
+        return db_client.get_exchange_mappings()
+    except Exception as e:
+        # Fallback to YAML
+        print(f"⚠️ Database unavailable ({e}), using {path} fallback")
+        with open(path, "r") as f:
+            return yaml.safe_load(f)
 
 def map_exchange_proxies(exchange: str, proxy_map: dict) -> dict:
     """
@@ -339,10 +347,18 @@ import yaml
 
 def load_industry_etf_map(path: str = "industry_to_etf.yaml") -> dict:
     """
-    Load industry → ETF mappings from a YAML file.
+    Load industry → ETF mappings from database (with YAML fallback).
     """
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
+    try:
+        # Try database first
+        from inputs.database_client import DatabaseClient
+        db_client = DatabaseClient()
+        return db_client.get_industry_mappings()
+    except Exception as e:
+        # Fallback to YAML
+        print(f"⚠️ Database unavailable ({e}), using {path} fallback")
+        with open(path, "r") as f:
+            return yaml.safe_load(f)
 
 def map_industry_etf(industry: str, etf_map: dict) -> str:
     """

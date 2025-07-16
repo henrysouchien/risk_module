@@ -129,7 +129,7 @@ AI_FUNCTIONS = {
                 },
                 "yaml_path": {
                     "type": "string",
-                    "description": "Path to portfolio YAML file to lookup factor proxies for comprehensive analysis. Optional - defaults to 'portfolio.yaml'. Set to null to disable factor proxy lookup and perform simple market regression only."
+                    "description": "Path to portfolio YAML file to lookup factor proxies for comprehensive analysis. Set to null to disable factor proxy lookup and perform simple market regression only."
                 },
                 "factor_proxies": {
                     "type": "object",

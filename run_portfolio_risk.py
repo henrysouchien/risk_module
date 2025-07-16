@@ -46,16 +46,25 @@ from portfolio_risk import (
 
 from typing import Dict, Callable, Union
 
-# Auto-detect cash positions from cash_map.yaml
+# Auto-detect cash positions from database (with YAML fallback)
 def get_cash_positions():
     try:
-        with open("cash_map.yaml", "r") as f:
-            cash_map = yaml.safe_load(f)
-            return set(cash_map.get("proxy_by_currency", {}).values())
-    except FileNotFoundError:
-        # Fallback to common cash proxies
-        print("⚠️  cash_map.yaml not found, using default cash proxies")
-        return {"SGOV", "ESTR", "IB01", "CASH", "USD"}
+        # Try database first
+        from inputs.database_client import DatabaseClient
+        db_client = DatabaseClient()
+        cash_map = db_client.get_cash_mappings()
+        return set(cash_map.get("proxy_by_currency", {}).values())
+    except Exception as e:
+        # Fallback to YAML
+        print(f"⚠️ Database unavailable ({e}), using cash_map.yaml fallback")
+        try:
+            with open("cash_map.yaml", "r") as f:
+                cash_map = yaml.safe_load(f)
+                return set(cash_map.get("proxy_by_currency", {}).values())
+        except FileNotFoundError:
+            # Fallback to common cash proxies
+            print("⚠️ cash_map.yaml not found, using default cash proxies")
+            return {"SGOV", "ESTR", "IB01", "CASH", "USD"}
 
 cash_positions = get_cash_positions()
 

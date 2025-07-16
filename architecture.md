@@ -497,9 +497,13 @@ risk_module/
 ├── 📁 Configuration Files
 │   ├── ⚙️ portfolio.yaml              # Portfolio configuration
 │   ├── ⚙️ risk_limits.yaml            # Risk limit definitions
-│   ├── 🗺️ cash_map.yaml               # Cash position mapping
-│   ├── 🏭 industry_to_etf.yaml        # Industry classification mapping
-│   ├── 📊 exchange_etf_proxies.yaml   # Exchange-specific proxies
+│   ├── 🗃️ db_schema.sql               # Database schema with reference data tables
+│   ├── 🛠️ admin/                      # Reference data management tools
+│   │   ├── manage_reference_data.py   # CLI tool for managing mappings
+│   │   └── README.md                  # Reference data management guide
+│   ├── 🗺️ cash_map.yaml               # Cash position mapping (YAML fallback)
+│   ├── 🏭 industry_to_etf.yaml        # Industry classification mapping (YAML fallback)
+│   ├── 📊 exchange_etf_proxies.yaml   # Exchange-specific proxies (YAML fallback)
 │   └── 🔧 what_if_portfolio.yaml      # What-if scenarios
 │
 ├── 📁 docs/ (Documentation)
@@ -1623,37 +1627,129 @@ Plaid API → Holdings Data → Cash Mapping → Portfolio YAML → Risk Analysi
 - Automatic cash gap detection
 - Portfolio consolidation
 
-### Cash Position Mapping (`cash_map.yaml`)
+### **Database-First Architecture**
 
-**Configuration Structure**:
-```yaml
-proxy_by_currency:        # ETF proxy for each currency
-  USD: SGOV
-  EUR: ESTR
-  GBP: IB01
+The system has been upgraded to use a **database-first approach with YAML fallback** for both user configurations and reference data management:
 
-alias_to_currency:        # Broker cash tickers → currency
-  CUR:USD: USD            # Interactive Brokers
-  USD CASH: USD
-  CASH: USD               # Generic fallback
+**Database Schema:**
+```sql
+-- User management and authentication
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255),
+    tier VARCHAR(50) DEFAULT 'public',
+    auth_provider VARCHAR(50) NOT NULL DEFAULT 'google',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- User portfolios with date ranges
+CREATE TABLE portfolios (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, name)
+);
+
+-- Portfolio positions with multi-currency support
+CREATE TABLE positions (
+    id SERIAL PRIMARY KEY,
+    portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    ticker VARCHAR(100) NOT NULL,
+    quantity DECIMAL(20,8) NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    type VARCHAR(20),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- User-specific risk limits
+CREATE TABLE risk_limits (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+    portfolio_id INT REFERENCES portfolios(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    max_volatility DECIMAL(5,4),
+    max_loss DECIMAL(5,4),
+    max_single_stock_weight DECIMAL(5,4),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Reference Data Tables:
+
+-- Cash currency to ETF proxy mappings
+CREATE TABLE cash_proxies (
+    currency VARCHAR(3) PRIMARY KEY,
+    proxy_etf VARCHAR(10) NOT NULL
+);
+
+-- Cash broker aliases to currency mappings
+CREATE TABLE cash_aliases (
+    broker_alias VARCHAR(50) PRIMARY KEY,
+    currency VARCHAR(3) NOT NULL
+);
+
+-- Exchange to factor proxy mappings
+CREATE TABLE exchange_proxies (
+    exchange VARCHAR(10) NOT NULL,
+    factor_type VARCHAR(20) NOT NULL,  -- 'market', 'momentum', 'value'
+    proxy_etf VARCHAR(10) NOT NULL,
+    PRIMARY KEY (exchange, factor_type)
+);
+
+-- Industry to ETF proxy mappings
+CREATE TABLE industry_proxies (
+    industry VARCHAR(100) PRIMARY KEY,
+    proxy_etf VARCHAR(10) NOT NULL
+);
 ```
 
-**Usage**:
-- Maps broker-specific cash tickers to currencies
-- Converts cash positions to appropriate ETF proxies
-- Supports multi-currency portfolios
+**Architecture Pattern:**
+```
+Database (Primary) → YAML Fallback → Hard-coded Defaults
+```
 
-### Factor Proxy Configuration
+**Code Integration:**
+```python
+# Cash mappings (in portfolio_manager.py)
+cash_map = self.db_client.get_cash_mappings()
+# Auto-fallback to cash_map.yaml if database unavailable
 
-**Industry Mapping (`industry_to_etf.yaml`)**:
-- Maps FMP industry classifications to representative ETFs
-- Supports custom industry definitions
-- Fallback to default proxies for unknown industries
+# Exchange mappings (in proxy_builder.py)
+exchange_map = load_exchange_proxy_map()
+# Auto-fallback to exchange_etf_proxies.yaml if database unavailable
 
-**Exchange-Specific Proxies (`exchange_etf_proxies.yaml`)**:
-- Exchange-specific factor proxy selection
-- Optimized for different market characteristics
-- Fallback to global proxies for international securities
+# Industry mappings (in proxy_builder.py)
+industry_map = load_industry_etf_map()
+# Auto-fallback to industry_to_etf.yaml if database unavailable
+```
+
+**Benefits:**
+- **Operational Flexibility**: Add new brokerages without code deployment
+- **Reliability**: Automatic fallback ensures system availability
+- **Auditability**: Database tracks all changes with timestamps
+- **Consistency**: Single source of truth for all reference data
+- **Scalability**: Database handles concurrent access and transactions
+
+**Admin Tools:**
+- `admin/manage_reference_data.py` - CLI tool for managing all mappings
+- `admin/README.md` - Complete reference data management guide
+- Database migration scripts for existing YAML data
+
+**YAML Files (Development & Fallback):**
+- `portfolio.yaml` - Local portfolio configuration (development/testing)
+- `risk_limits.yaml` - Local risk limits configuration (development/testing)
+- `cash_map.yaml` - Cash position mapping (database fallback)
+- `industry_to_etf.yaml` - Industry classification mapping (database fallback)
+- `exchange_etf_proxies.yaml` - Exchange-specific factor proxies (database fallback)
+- `what_if_portfolio.yaml` - What-if scenario configurations
 
 ## 🔌 API Integration
 

@@ -16,7 +16,7 @@ A comprehensive portfolio and single-stock risk analysis system that provides mu
 - **Risk Limit Monitoring**: Get alerts when your portfolio exceeds your risk tolerance with suggested limits
 - **Dual-Mode Operations**: Seamless switching between file-based and database storage modes
 - **Data Caching**: Fast, reliable data access for consistent analysis with 78,000x speedup
-- **YAML Configuration**: Easy portfolio setup and risk limit management
+- **YAML Configuration**: Easy portfolio setup and risk limit management (portfolio.yaml, risk_limits.yaml)
 - **Centralized Settings**: Consistent analysis across different portfolios
 
 ## 🏗️ Architecture Overview
@@ -30,6 +30,7 @@ The Risk Module supports both file-based and database-based operations through a
 - **User Isolation**: Complete data separation between users with secure session management
 - **Multi-Currency Support**: Native support for USD, EUR, GBP, JPY, and other currencies
 - **Performance Optimization**: 9.4ms average query response time with connection pooling
+- **Database-First Reference Data**: Cash, exchange, and industry mappings stored in database with YAML fallback
 - **Fallback Mechanisms**: Automatic fallback to file mode when database is unavailable
 - **Cash Position Mapping**: Dynamic cash position mapping with preserved currency identifiers
 - **Comprehensive Testing**: 95% test coverage with performance, security, and reliability validation
@@ -1136,43 +1137,86 @@ convert_plaid_df_to_yaml_input(
 )
 ```
 
-### Cash Position Mapping (`cash_map.yaml`)
+### **Database-First Architecture**
 
-Configuration for mapping cash positions to appropriate ETF proxies:
+The system now uses a **database-first approach with YAML fallback** for both user configurations and reference data:
 
-```yaml
-proxy_by_currency:        # ETF proxy for each currency
-  USD: SGOV
-  EUR: ESTR
-  GBP: IB01
+**User Configuration Tables:**
+- `users` - User management and multi-provider authentication
+- `portfolios` - User portfolios with date ranges and metadata
+- `positions` - Portfolio positions with multi-currency support
+- `risk_limits` - User-specific risk tolerance settings
+- `factor_proxies` - Factor model configurations per portfolio
+- `scenarios` - What-if scenarios and portfolio alternatives
+- `user_sessions` - Secure session management
+- `user_preferences` - User settings and AI context
 
-alias_to_currency:        # Broker cash tickers → currency
-  CUR:USD: USD            # Interactive Brokers
-  USD CASH: USD
-  CASH: USD               # Generic fallback
+**Reference Data Tables:**
+- `cash_proxies` - Currency to ETF proxy mappings (USD → SGOV)
+- `cash_aliases` - Broker-specific cash identifiers (CUR:USD → USD)
+- `exchange_proxies` - Exchange to factor proxy mappings (NASDAQ → SPY/MTUM/IWD)
+- `industry_proxies` - Industry to ETF mappings (Technology → XLK)
+
+**Architecture:**
+```
+Database (Primary) → YAML Fallback → Hard-coded Defaults
 ```
 
-### Factor Proxy Configuration
+**Benefits:**
+- **Multi-User Support**: Complete user isolation with secure session management
+- **Operational Flexibility**: Add new brokerages and configurations without code deployment
+- **Reliability**: Automatic fallback to YAML files if database unavailable
+- **Auditability**: Database tracks all changes with timestamps and user attribution
+- **Scalability**: Handles concurrent access and transactions (10/10 users successful)
+- **Performance**: 9.4ms average query time with connection pooling
 
-**Industry Mapping (`industry_to_etf.yaml`):**
-```yaml
-"Technology": "XLK"
-"Healthcare": "XLV"
-"Financial Services": "XLF"
-# ... more industry mappings
+**Management:**
+```bash
+# Reference data management
+python admin/manage_reference_data.py cash add EUR ESTR
+python admin/manage_reference_data.py cash-alias add "CUR:EUR" EUR
+python admin/manage_reference_data.py exchange add LSE market EFA
+python admin/manage_reference_data.py industry add "Financial Services" XLF
+
+# User configuration management (via database)
+# - User portfolios stored in database with complete isolation
+# - Risk limits managed per user/portfolio
+# - Scenarios and preferences tracked per user
+# - Session management handles multi-user concurrent access
+
+# List current mappings
+python admin/manage_reference_data.py cash list
+python admin/manage_reference_data.py exchange list
+python admin/manage_reference_data.py industry list
 ```
 
-**Exchange-Specific Proxies (`exchange_etf_proxies.yaml`):**
-```yaml
-NASDAQ:
-  market: "SPY"
-  momentum: "MTUM"
-  value: "IWD"
-DEFAULT:
-  market: "ACWX"
-  momentum: "IMTM"
-  value: "EFV"
+**Code Integration:**
+```python
+# System automatically loads from database with YAML fallback
+from inputs.database_client import DatabaseClient
+from inputs.portfolio_manager import PortfolioManager
+
+# Multi-user portfolio management
+portfolio_manager = PortfolioManager(use_database=True, user_id="user_123")
+portfolio_data = portfolio_manager.load_portfolio_data("main_portfolio")
+
+# Reference data with fallback
+db_client = DatabaseClient()
+cash_map = db_client.get_cash_mappings()        # Falls back to cash_map.yaml
+exchange_map = db_client.get_exchange_mappings()  # Falls back to exchange_etf_proxies.yaml
+industry_map = db_client.get_industry_mappings()  # Falls back to industry_to_etf.yaml
+
+# User-specific risk limits
+risk_limits = db_client.get_risk_limits(user_id="user_123", portfolio_id=1)
 ```
+
+**YAML Files (Development & Fallback):**
+- `portfolio.yaml` - Local portfolio configuration (development/testing)
+- `risk_limits.yaml` - Local risk limits configuration (development/testing)
+- `cash_map.yaml` - Cash position mapping (database fallback)
+- `industry_to_etf.yaml` - Industry classification mapping (database fallback)
+- `exchange_etf_proxies.yaml` - Exchange-specific factor proxies (database fallback)
+- `what_if_portfolio.yaml` - What-if scenario configurations
 
 ## 🧪 Testing
 
@@ -1276,9 +1320,13 @@ risk_module/
 ├── portfolio.yaml              # Portfolio positions and factor proxies
 ├── risk_limits.yaml            # Risk tolerance and limit settings
 ├── settings.py                 # Default system configuration
-├── cash_map.yaml               # Cash position mapping to ETF proxies
-├── industry_to_etf.yaml        # Industry classification to ETF mapping
-├── exchange_etf_proxies.yaml   # Exchange-specific factor proxies
+├── db_schema.sql               # Database schema with reference data tables
+├── admin/                      # Reference data management tools
+│   ├── manage_reference_data.py # CLI tool for managing cash, exchange, industry mappings
+│   └── README.md               # Reference data management guide
+├── cash_map.yaml               # Cash position mapping (YAML fallback)
+├── industry_to_etf.yaml        # Industry classification mapping (YAML fallback)
+├── exchange_etf_proxies.yaml   # Exchange-specific factor proxies (YAML fallback)
 └── what_if_portfolio.yaml      # What-if scenario configurations
 ```
 

@@ -498,5 +498,107 @@ JOIN positions pos ON p.id = pos.portfolio_id
 GROUP BY u.email, p.name;
 
 -- ============================================================================
+-- REFERENCE DATA TABLES
+-- ============================================================================
+
+-- Cash currency to ETF proxy mappings
+CREATE TABLE cash_proxies (
+    currency VARCHAR(3) PRIMARY KEY,
+    proxy_etf VARCHAR(10) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Cash broker aliases to currency mappings
+CREATE TABLE cash_aliases (
+    broker_alias VARCHAR(50) PRIMARY KEY,
+    currency VARCHAR(3) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Exchange to factor proxy mappings
+CREATE TABLE exchange_proxies (
+    exchange VARCHAR(10) NOT NULL,
+    factor_type VARCHAR(20) NOT NULL,  -- 'market', 'momentum', 'value'
+    proxy_etf VARCHAR(10) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (exchange, factor_type)
+);
+
+-- Industry to ETF proxy mappings
+CREATE TABLE industry_proxies (
+    industry VARCHAR(100) PRIMARY KEY,
+    proxy_etf VARCHAR(10) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- REFERENCE DATA INDEXES
+-- ============================================================================
+
+-- Cash mapping indexes
+CREATE INDEX idx_cash_aliases_currency ON cash_aliases(currency);
+
+-- Exchange mapping indexes
+CREATE INDEX idx_exchange_proxies_exchange ON exchange_proxies(exchange);
+CREATE INDEX idx_exchange_proxies_factor_type ON exchange_proxies(factor_type);
+
+-- Industry mapping indexes
+CREATE INDEX idx_industry_proxies_industry ON industry_proxies(industry);
+
+-- ============================================================================
+-- REFERENCE DATA SEED DATA
+-- ============================================================================
+
+-- Default cash proxy mappings
+INSERT INTO cash_proxies (currency, proxy_etf) VALUES
+    ('USD', 'SGOV'),
+    ('EUR', 'ESTR'),
+    ('GBP', 'IB01')
+ON CONFLICT (currency) DO NOTHING;
+
+-- Default cash alias mappings
+INSERT INTO cash_aliases (broker_alias, currency) VALUES
+    ('CUR:USD', 'USD'),
+    ('USD CASH', 'USD'),
+    ('CASH', 'USD'),
+    ('CUR:EUR', 'EUR'),
+    ('EUR CASH', 'EUR'),
+    ('CUR:GBP', 'GBP'),
+    ('GBP CASH', 'GBP')
+ON CONFLICT (broker_alias) DO NOTHING;
+
+-- Default exchange proxy mappings
+INSERT INTO exchange_proxies (exchange, factor_type, proxy_etf) VALUES
+    ('NASDAQ', 'market', 'SPY'),
+    ('NASDAQ', 'momentum', 'MTUM'),
+    ('NASDAQ', 'value', 'IWD'),
+    ('NYSE', 'market', 'SPY'),
+    ('NYSE', 'momentum', 'MTUM'),
+    ('NYSE', 'value', 'IWD'),
+    ('DEFAULT', 'market', 'ACWX'),
+    ('DEFAULT', 'momentum', 'IMTM'),
+    ('DEFAULT', 'value', 'EFV')
+ON CONFLICT (exchange, factor_type) DO NOTHING;
+
+-- Default industry proxy mappings  
+INSERT INTO industry_proxies (industry, proxy_etf) VALUES
+    ('Technology', 'XLK'),
+    ('Healthcare', 'XLV'),
+    ('Financial Services', 'XLF'),
+    ('Consumer Discretionary', 'XLY'),
+    ('Consumer Staples', 'XLP'),
+    ('Energy', 'XLE'),
+    ('Industrials', 'XLI'),
+    ('Materials', 'XLB'),
+    ('Real Estate', 'XLRE'),
+    ('Utilities', 'XLU'),
+    ('Communication Services', 'XLC')
+ON CONFLICT (industry) DO NOTHING;
+
+-- ============================================================================
 -- END OF SCHEMA
 -- ============================================================================ 
