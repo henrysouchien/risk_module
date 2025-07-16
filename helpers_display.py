@@ -18,6 +18,7 @@ def _drop_factors(df: pd.DataFrame) -> pd.DataFrame:
     """
     Remove presentation-only factor rows (case / whitespace agnostic).
     """
+    # LOGGING: Add display filtering logging with excluded factor count and names
     if df.empty:
         return df
     idx_mask = (

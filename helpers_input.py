@@ -30,6 +30,7 @@ def _parse_shift(txt: str) -> float:
 
     "+200bp", "-75bps", "1.5%", "-0.01"  →  0.02, -0.0075, 0.015, -0.01
     """
+    # LOGGING: Add input validation logging with original and parsed values
     t = txt.strip().lower().replace(" ", "")
     if t.endswith("%"):
         return float(t[:-1]) / 100

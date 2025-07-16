@@ -39,6 +39,7 @@ class LFUCache:
         
     def get(self, key):
         """Get value and increment frequency."""
+        # LOGGING: Add cache access logging with hit/miss tracking
         if key not in self.cache:
             return None
             
@@ -437,17 +438,21 @@ def build_proxy_for_ticker(
     • If the FMP profile fetch fails, the function returns None.
     • Unrecognized industries default to industry_map['DEFAULT'], if defined.
     """
+    # LOGGING: Add proxy building start logging with ticker and timing
     try:
         profile = fetch_profile(ticker)
     except Exception as e:
+        # LOGGING: Add profile fetch error logging with ticker and error details
         print(f"⚠️ {ticker}: profile fetch failed — {e}")
         return None
 
     proxies = {}
 
+    # LOGGING: Add exchange mapping logging with exchange and mapped proxies
     # Add exchange-based factors (always)
     proxies.update(map_exchange_proxies(profile.get("exchange", ""), exchange_map))
 
+    # LOGGING: Add industry mapping logging with ETF/fund detection and industry assignment
     # Assign industry to itself only if it's an ETF/fund AND not already used as market proxy
     # Else, add industry proxy ETF
     if profile.get("isEtf") or profile.get("isFund"):
@@ -459,6 +464,7 @@ def build_proxy_for_ticker(
         proxies["subindustry"] = []
     else:
         industry = profile.get("industry")
+        # LOGGING: Add industry ETF mapping logging with industry name and mapped ETF
         proxies["industry"] = map_industry_etf(industry, industry_map) if industry else ""
         proxies["subindustry"] = []
 

@@ -48,6 +48,7 @@ from typing import Dict, Callable, Union
 
 # Auto-detect cash positions from database (with YAML fallback)
 def get_cash_positions():
+    # LOGGING: Add cash position detection logging with data source and timing
     try:
         # Try database first
         from inputs.database_client import DatabaseClient
@@ -89,8 +90,10 @@ def standardize_portfolio_input(
             "leverage": float
         }
     """
+    # LOGGING: Add portfolio standardization start logging with input size and format
     dollar_exposure = {}
 
+    # LOGGING: Add portfolio processing logging with ticker count and validation
     for ticker, entry in raw_input.items():
         if "weight" in entry:
             # Will normalize weights separately
@@ -483,8 +486,10 @@ def evaluate_portfolio_risk_limits(
     Returns:
         pd.DataFrame: One row per check with actual, limit, and pass/fail.
     """
+    # LOGGING: Add risk limits evaluation start logging with limit types and values
     results = []
 
+    # LOGGING: Add volatility check logging with actual vs limit values
     # 1. Volatility Check
     actual_vol = summary["volatility_annual"]
     vol_limit = portfolio_limits["max_volatility"]
