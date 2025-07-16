@@ -153,6 +153,11 @@ def compute_factor_metrics(
     Returns:
         pd.DataFrame: One row per factor, columns: beta, r_squared, idio_vol_m
     """
+    # LOGGING: Add factor metrics calculation start logging
+    # LOGGING: Add factor calculation timing
+    # LOGGING: Add peer analysis logging
+    # LOGGING: Add regression computation logging
+    # LOGGING: Add data quality validation logging
     results = {}
 
     for name, factor_series in factor_dict.items():

@@ -747,6 +747,11 @@ def run_min_var(
         - risk check DataFrame
         - factor beta check DataFrame
     """
+    # LOGGING: Add minimum variance optimization start logging
+    # LOGGING: Add optimization algorithm timing
+    # LOGGING: Add constraint validation logging
+    # LOGGING: Add convergence tracking
+    # LOGGING: Add solution quality logging
     from portfolio_optimizer import run_min_var_optimiser, evaluate_weights
 
     w_opt = run_min_var_optimiser(
@@ -763,6 +768,7 @@ def run_min_var(
         config["start_date"], config["end_date"],
         proxies
     )
+    # LOGGING: Add minimum variance optimization completion logging
     return w_opt, risk_tbl, beta_tbl
 
 

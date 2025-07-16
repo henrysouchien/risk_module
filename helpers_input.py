@@ -55,34 +55,42 @@ def parse_delta(
     -------
     (delta_dict, new_weights_dict_or_None)
     """
+    # LOGGING: Log function entry with parameters yaml_path and literal_shift type/presence
     delta: Dict[str, float] = {}
     new_w: Optional[Dict[str, float]] = None
 
     # ── YAML branch (only if file is present) ─────────────────────────
     if yaml_path and Path(yaml_path).is_file():
+        # LOGGING: Log YAML file loading attempt with file path
         cfg = yaml.safe_load(Path(yaml_path).read_text()) or {}
         
         # 1) full-replacement portfolio
         if "new_weights" in cfg:               
+            # LOGGING: Log full portfolio replacement mode with new_weights count
             w = {k: float(v) for k, v in cfg["new_weights"].items()}
             from portfolio_risk import normalize_weights
             new_w = normalize_weights(w)
+            # LOGGING: Log successful portfolio replacement with normalized weights summary
             return {}, new_w
 
         # 2) incremental tweaks
         if "delta" in cfg:                     
+            # LOGGING: Log incremental delta parsing with delta keys
             delta.update({k: _parse_shift(v) for k, v in cfg["delta"].items()})
 
     # ── literal shift branch (CLI / notebook) ────────────────────────
     if literal_shift:
+        # LOGGING: Log literal shift processing with ticker count and shift values
         delta.update({k: _parse_shift(v) for k, v in literal_shift.items()})
 
     # ── sanity check -------------------------------------------------------
     if not delta and new_w is None:
+        # LOGGING: Log error condition - no valid input provided
         raise ValueError(
             "No delta or new_weights provided (YAML empty and literal_shift is None)"
         )
 
+    # LOGGING: Log successful delta parsing with final delta dict summary
     return delta, new_w
 
 

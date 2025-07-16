@@ -46,6 +46,7 @@ def cache_read(
         prefix  = "SPY",
     )
     """
+    # LOGGING: Add cache operation start logging here
     cache_dir = Path(cache_dir).expanduser().resolve()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -55,11 +56,14 @@ def cache_read(
     if path.is_file():
         df = _safe_load(path)
         if df is not None:
+            # LOGGING: Add cache hit logging here
             return df.iloc[:, 0] if df.shape[1] == 1 else df
 
+    # LOGGING: Add cache miss logging here
     obj = loader()                                    # cache miss → compute
     df  = obj.to_frame(name=obj.name or "value") if isinstance(obj, pd.Series) else obj
     df.to_parquet(path, engine="pyarrow", compression="zstd", index=True)
+    # LOGGING: Add cache write logging here
     return obj
 
 
@@ -125,6 +129,7 @@ def fetch_monthly_close(
     Returns:
         pd.Series: Month-end close prices indexed by date.
     """
+    # LOGGING: Add FMP API data fetch request logging here
     # ----- loader (runs only on cache miss) ------------------------------
     def _api_pull() -> pd.Series:
         params = {"symbol": ticker, "apikey": API_KEY, "serietype": "line"}
@@ -133,8 +138,10 @@ def fetch_monthly_close(
         if end_date:
             params["to"]   = pd.to_datetime(end_date).date().isoformat()
     
+        # LOGGING: Add FMP API call logging with timing and rate limiting here
         resp = requests.get(f"{BASE_URL}/historical-price-eod/full", params=params, timeout=30)
         resp.raise_for_status()
+        # LOGGING: Add FMP API response logging here
         raw  = resp.json()
         data = raw if isinstance(raw, list) else raw.get("historical", [])
     

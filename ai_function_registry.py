@@ -28,6 +28,11 @@ USAGE:
 - get_all_function_names(): Returns list of all available function names
 """
 
+# LOGGING: Add function registration logging
+# LOGGING: Add function call timing
+# LOGGING: Add function result validation
+# LOGGING: Add error handling logging
+
 AI_FUNCTIONS = {
     "create_portfolio_scenario": {
         "name": "create_portfolio_scenario",

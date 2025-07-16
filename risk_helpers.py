@@ -35,6 +35,10 @@ def get_worst_monthly_factor_losses(
     Returns:
         Dict[str, float]: {proxy: worst 1-month return}
     """
+    # LOGGING: Add risk calculation timing
+    # LOGGING: Add mathematical operation logging
+    # LOGGING: Add validation step logging
+    # LOGGING: Add error context logging
     from data_loader import fetch_monthly_close
     from factor_utils import calc_monthly_returns
 

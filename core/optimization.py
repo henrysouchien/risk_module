@@ -43,6 +43,7 @@ def optimize_min_variance(filepath: str) -> Dict[str, Any]:
         - beta_analysis: Beta checks for optimized portfolio
         - optimization_metadata: Optimization configuration and results
     """
+    # LOGGING: Add min variance optimization start logging and timing here
     
     # --- load configs ------------------------------------------------------
     config = load_portfolio_config(filepath)
@@ -58,6 +59,7 @@ def optimize_min_variance(filepath: str) -> Dict[str, Any]:
         risk_config  = risk_config,
         proxies      = config["stock_factor_proxies"],
     )
+    # LOGGING: Add min variance calculation performance timing here
     
     # --- Return structured results ----------------------------------------
     result = make_json_safe({
@@ -177,4 +179,5 @@ def optimize_max_return(filepath: str) -> Dict[str, Any]:
         "proxy_table": p_b
     }
     
+    # LOGGING: Add optimization completion logging with timing here
     return result 

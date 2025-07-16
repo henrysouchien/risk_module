@@ -50,9 +50,11 @@ def analyze_scenario(
         - comparison_analysis: Before/after comparison data
         - scenario_metadata: Scenario configuration and metadata
     """
+    # LOGGING: Add scenario analysis start logging and timing here
     
     # --- load configs ------------------------------------------------------
     config = load_portfolio_config(filepath)
+    # LOGGING: Add config loading performance timing here
     with open("risk_limits.yaml", "r") as f:
         risk_config = yaml.safe_load(f)
 
@@ -157,4 +159,5 @@ def analyze_scenario(
         "cmp_beta": cmp_beta
     }
     
+    # LOGGING: Add scenario analysis completion logging with timing here
     return result 

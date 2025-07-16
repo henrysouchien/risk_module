@@ -806,6 +806,11 @@ def inject_all_proxies(
     Overwrites the YAML file in place, populating the `stock_factor_proxies` section.
     Prints progress to stdout for each ticker processed.
     """
+    # LOGGING: Add proxy injection timing
+    # LOGGING: Add industry mapping logging
+    # LOGGING: Add peer discovery logging
+    # LOGGING: Add data validation logging
+    # LOGGING: Add proxy building timing
     path = Path(yaml_path)
     if not path.exists():
         raise FileNotFoundError(f"{yaml_path} not found")

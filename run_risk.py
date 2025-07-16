@@ -278,6 +278,9 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
     >>> print(result["risk_analysis"]["risk_passes"])
     True
     """
+    # LOGGING: Add portfolio analysis entry logging with timing
+    # LOGGING: Add user context tracking
+    # LOGGING: Add performance monitoring for operations >1s
     
     # ─── BUSINESS LOGIC: Call extracted core function ─────────
     analysis_result = analyze_portfolio(filepath)
@@ -292,6 +295,7 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
     lookback_years = analysis_result["analysis_metadata"]["lookback_years"]
     
     # Load config for CLI display (needed for return_data mode)
+    # LOGGING: Add portfolio config load timing
     config = load_portfolio_config(filepath)
     with open("risk_limits.yaml", "r") as f:
         risk_config = yaml.safe_load(f)
@@ -350,6 +354,7 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
             },
             "formatted_report": buf.getvalue()
         }
+        # LOGGING: Add portfolio analysis completion logging with execution time
     else:
         # CLI MODE: Print formatted output
         display_portfolio_config(config)
@@ -366,6 +371,8 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
         for factor, row in df_beta.iterrows():
             status = "→ PASS" if row["pass"] else "→ FAIL"
             print(f"{factor:<20} β = {row['portfolio_beta']:+.2f}  ≤ {row['max_allowed_beta']:.2f}  {status}")
+
+        # LOGGING: Add portfolio analysis completion logging with execution time
 
 # ============================================================================
 # WHAT-IF SCENARIO LOGIC

@@ -58,6 +58,9 @@ def _print_single_portfolio(risk_df, beta_df, title: str = "What-if") -> None:
     • Pass/fail booleans are mapped to the strings ``PASS`` / ``FAIL``.
     • Prints directly to stdout; returns None.
     """
+    # LOGGING: Add display rendering timing
+    # LOGGING: Add data formatting logging
+    # LOGGING: Add output validation logging
     pct = lambda x: f"{x:.1%}"                # 1-decimal percentage
 
     print(f"\n📐  {title} Risk Checks\n")

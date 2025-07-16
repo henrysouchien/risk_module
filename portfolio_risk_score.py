@@ -1197,12 +1197,17 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
     risk_yaml : str
         Path to risk limits configuration file
     """
+    # LOGGING: Add risk score analysis start logging
+    # LOGGING: Add component score logging
+    # LOGGING: Add recommendation generation logging
+    # LOGGING: Add score validation logging
     if build_portfolio_view is None or calc_max_factor_betas is None or standardize_portfolio_input is None:
         print("Error: Required modules not available. Make sure you're in the risk_module directory.")
         return
     
     try:
         # Load configuration
+        # LOGGING: Add configuration load timing
         with open(portfolio_yaml, "r") as f:
             config = yaml.safe_load(f)
         

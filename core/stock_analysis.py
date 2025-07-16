@@ -55,6 +55,7 @@ def analyze_stock(
         - factor_summary: Factor analysis summary (if applicable)
         - analysis_metadata: Analysis configuration and timestamps
     """
+    # LOGGING: Add stock analysis start logging and timing here
     
     ticker = ticker.upper()
 
@@ -130,4 +131,5 @@ def analyze_stock(
             "raw_data": {
                 "result": result
             }
-        }) 
+        })
+    # LOGGING: Add stock analysis completion logging with timing here 

@@ -398,6 +398,7 @@ def _build_portfolio_view_computation(
     expected_returns: Optional[Dict[str, float]] = None,
     stock_factor_proxies: Optional[Dict[str, Dict[str, Union[str, List[str]]]]] = None
 ) -> Dict[str, Any]:
+    # LOGGING: Add portfolio view computation start logging here
     """
     Builds a complete portfolio risk profile using historical returns, factor regressions,
     and variance decomposition.
