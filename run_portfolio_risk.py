@@ -198,8 +198,6 @@ def standardize_portfolio_input(
 # File: run_portfolio_risk.py
 
 @log_error_handling("high")
-@log_api_health("FMP_API", "latest_price")
-@log_performance(1.0)
 def latest_price(ticker: str) -> float:
     """
     Fetches the latest available month-end closing price for a given ticker.

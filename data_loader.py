@@ -37,8 +37,6 @@ def _safe_load(path: Path) -> Optional[pd.DataFrame]:
         return None
 
 # ── public API ────────────────────────────────────────────────────────
-@log_cache_operations("general")
-@log_performance(0.1)
 def cache_read(
     *,
     key: Iterable[str | int | float],
@@ -83,8 +81,6 @@ def cache_read(
     return obj
 
 
-@log_cache_operations("general")
-@log_performance(0.1)
 def cache_write(
     obj: Union[pd.Series, pd.DataFrame],
     *,
@@ -135,9 +131,6 @@ BASE_URL = "https://financialmodelingprep.com/stable"
 
 
 @log_error_handling("high")
-@log_api_health("FMP_API", "stock_prices")
-@log_cache_operations("stock_data")
-@log_performance(1.0)
 def fetch_monthly_close(
     ticker: str,
     start_date: Optional[Union[str, datetime]] = None,
@@ -217,9 +210,6 @@ def fetch_monthly_close(
 
 
 @log_error_handling("high")
-@log_api_health("FMP_API", "treasury_rates")
-@log_cache_operations("treasury_data")
-@log_performance(1.0)
 def fetch_monthly_treasury_rates(
     maturity: str = "month3",
     start_date: Optional[Union[str, datetime]] = None,

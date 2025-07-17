@@ -86,9 +86,6 @@ client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 # ── Peer-generator helper ─────────────────────────────────────────────
 @log_error_handling("high")
-@log_portfolio_operation_decorator("ai_peer_generation")
-@log_api_health("OpenAI", "chat_completions")
-@log_performance(3.0)
 def generate_subindustry_peers(
     ticker: str,
     name: str,

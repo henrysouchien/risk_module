@@ -181,7 +181,6 @@ def compute_herfindahl(
 from typing import Any
 
 @log_error_handling("high")
-@log_performance(1.0)
 def compute_portfolio_variance_breakdown(
     weights: Dict[str, float],
     idio_var_dict: Dict[str, float],
@@ -410,9 +409,6 @@ def build_portfolio_view(
     )
 
 @log_error_handling("high")
-@log_portfolio_operation_decorator("portfolio_view_computation")
-@log_cache_operations("portfolio_computation")
-@log_performance(5.0)
 def _build_portfolio_view_computation(
     weights: Dict[str, float],
     start_date: str,

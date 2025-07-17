@@ -91,8 +91,6 @@ def compute_regression_metrics(df: pd.DataFrame) -> Dict[str, float]:
 
 
 @log_error_handling("high")
-@log_api_health("FMP_API", "peer_data")
-@log_performance(3.0)
 def fetch_peer_median_monthly_returns(
     tickers: List[str],
     start_date: Optional[Union[str, datetime]] = None,
@@ -146,8 +144,6 @@ def fetch_excess_return(
     return etf_aligned - market_aligned
 
 @log_error_handling("high")
-@log_portfolio_operation_decorator("factor_metrics")
-@log_performance(2.0)
 def compute_factor_metrics(
     stock_returns: pd.Series,
     factor_dict: Dict[str, pd.Series]
@@ -210,8 +206,6 @@ import pandas as pd
 from typing import Dict
 
 @log_error_handling("high")
-@log_portfolio_operation_decorator("factor_beta_calculation")
-@log_performance(5.0)
 def compute_stock_factor_betas(
     stock_ret: pd.Series,
     factor_rets: Dict[str, pd.Series]

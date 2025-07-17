@@ -636,8 +636,6 @@ def filter_valid_tickers(
 import ast
 
 @log_error_handling("high")
-@log_portfolio_operation_decorator("ai_peer_generation")
-@log_performance(5.0)
 @cache_gpt_peers
 def get_subindustry_peers_from_ticker(
     ticker: str,
