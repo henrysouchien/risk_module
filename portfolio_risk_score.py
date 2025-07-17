@@ -1186,6 +1186,14 @@ def _format_risk_score_output(risk_score: Dict[str, Any], limits_analysis: Dict[
     return f.getvalue()
 
 
+# Import logging decorators for risk scoring
+from utils.logging import log_portfolio_operation_decorator, log_performance, log_error_handling, log_resource_usage_decorator, log_workflow_state_decorator
+
+@log_error_handling("high")
+@log_portfolio_operation_decorator("risk_score_analysis")
+@log_workflow_state_decorator("risk_score_analysis")
+@log_resource_usage_decorator(monitor_memory=True, monitor_cpu=True)
+@log_performance(5.0)
 def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: str = "risk_limits.yaml", *, return_data: bool = False):
     """
     Run a complete risk score analysis on a portfolio.

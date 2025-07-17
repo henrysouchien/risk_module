@@ -20,6 +20,16 @@ from factor_utils import (
     fetch_peer_median_monthly_returns
 )
 
+# Import logging decorators for risk summary analysis
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling
+)
+
+@log_error_handling("high")
+@log_portfolio_operation_decorator("single_stock_analysis")
+@log_performance(2.0)
 def get_stock_risk_profile(
     ticker: str,
     start_date: Union[str, pd.Timestamp],
@@ -66,6 +76,9 @@ def get_stock_risk_profile(
 from typing import List, Dict, Optional, Union
 import pandas as pd
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("detailed_stock_factor_analysis")
+@log_performance(3.0)
 def get_detailed_stock_factor_profile(
     ticker: str,
     start_date: Union[str, pd.Timestamp],

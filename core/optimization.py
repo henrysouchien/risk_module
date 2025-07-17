@@ -21,7 +21,18 @@ from portfolio_optimizer import (
 )
 from utils.serialization import make_json_safe
 
+# Import logging decorators for optimization
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling,
+    log_resource_usage_decorator
+)
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("min_variance_optimization")
+@log_resource_usage_decorator(monitor_memory=True, monitor_cpu=True)
+@log_performance(10.0)
 def optimize_min_variance(filepath: str) -> Dict[str, Any]:
     """
     Core minimum variance optimization business logic.
@@ -99,6 +110,10 @@ def optimize_min_variance(filepath: str) -> Dict[str, Any]:
     return result
 
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("max_return_optimization")
+@log_resource_usage_decorator(monitor_memory=True, monitor_cpu=True)
+@log_performance(10.0)
 def optimize_max_return(filepath: str) -> Dict[str, Any]:
     """
     Core maximum return optimization business logic.

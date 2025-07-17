@@ -15,7 +15,17 @@ from core.portfolio_analysis import analyze_portfolio
 from utils.serialization import _format_portfolio_output_as_text
 from gpt_helpers import interpret_portfolio_risk
 
+# Import logging decorators for AI interpretation
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling
+)
 
+
+@log_error_handling("high")
+@log_portfolio_operation_decorator("ai_interpretation")
+@log_performance(8.0)
 def analyze_and_interpret(portfolio_yaml: str) -> Dict[str, Any]:
     """
     Core AI interpretation business logic for portfolio analysis.

@@ -11,6 +11,14 @@ import hashlib
 import json
 from collections import defaultdict, OrderedDict
 
+# Import logging decorators for proxy builder operations
+from utils.logging import (
+    log_error_handling,
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_cache_operations
+)
+
 # ============================================================================
 # LFU CACHE IMPLEMENTATION FOR PROXY DATA
 # ============================================================================
@@ -383,6 +391,8 @@ def map_industry_etf(industry: str, etf_map: dict) -> str:
 
 # file: proxy_builder.py
 
+@log_error_handling("medium")
+@log_performance(1.0)
 def build_proxy_for_ticker(
     ticker: str,
     exchange_map: dict,
@@ -439,10 +449,12 @@ def build_proxy_for_ticker(
     • Unrecognized industries default to industry_map['DEFAULT'], if defined.
     """
     # LOGGING: Add proxy building start logging with ticker and timing
+    from utils.logging import log_critical_alert
     try:
         profile = fetch_profile(ticker)
     except Exception as e:
         # LOGGING: Add profile fetch error logging with ticker and error details
+        log_critical_alert("profile_fetch_failure", "medium", f"Profile fetch failed for {ticker}", "Check ticker validity and API connectivity", details={"ticker": ticker, "error": str(e)})
         print(f"⚠️ {ticker}: profile fetch failed — {e}")
         return None
 
@@ -623,6 +635,9 @@ def filter_valid_tickers(
 
 import ast
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("ai_peer_generation")
+@log_performance(5.0)
 @cache_gpt_peers
 def get_subindustry_peers_from_ticker(
     ticker: str,
@@ -777,6 +792,10 @@ def inject_subindustry_peers_into_yaml(
 import yaml
 from pathlib import Path
 
+@log_error_handling("medium")
+@log_portfolio_operation_decorator("proxy_injection")
+@log_performance(2.0)
+@log_cache_operations("proxy_data")
 def inject_all_proxies(
     yaml_path: str = "portfolio.yaml",
     use_gpt_subindustry: bool = False

@@ -17,12 +17,26 @@ load_dotenv()  # This loads variables from .env into the environment
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
+# Import logging decorators for GPT API operations
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling,
+    log_api_health,
+    log_service_health,
+    log_critical_alert
+)
+
 
 # In[ ]:
 
 
 # File: gpt_helpers.py
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("ai_interpretation")
+@log_api_health("OpenAI", "chat_completions")
+@log_performance(3.0)
 def interpret_portfolio_risk(diagnostics_text: str) -> str:
     """
     Sends raw printed diagnostics to GPT for layman interpretation.
@@ -71,6 +85,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 # ── Peer-generator helper ─────────────────────────────────────────────
+@log_error_handling("high")
+@log_portfolio_operation_decorator("ai_peer_generation")
+@log_api_health("OpenAI", "chat_completions")
+@log_performance(3.0)
 def generate_subindustry_peers(
     ticker: str,
     name: str,

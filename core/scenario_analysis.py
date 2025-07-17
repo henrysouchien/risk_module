@@ -19,7 +19,16 @@ from run_portfolio_risk import (
 from portfolio_risk import build_portfolio_view
 from portfolio_optimizer import run_what_if_scenario
 
+# Import logging decorators for scenario analysis
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling
+)
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("scenario_analysis")
+@log_performance(5.0)
 def analyze_scenario(
     filepath: str,
     scenario_yaml: Optional[str] = None,

@@ -26,6 +26,14 @@ from factor_utils import (
 
 from settings import PORTFOLIO_DEFAULTS
 
+# Import logging decorators for portfolio analysis
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling,
+    log_cache_operations
+)
+
 def normalize_weights(weights: Dict[str, float], normalize: Optional[bool] = None) -> Dict[str, float]:
     """
     Normalize weights to gross exposure (sum of absolute values = 1).
@@ -91,6 +99,8 @@ def compute_correlation_matrix(
     """
     return returns.corr()
 
+@log_error_handling("high")
+@log_performance(1.0)
 def compute_portfolio_volatility(
     weights: Dict[str, float],
     cov_matrix: pd.DataFrame
@@ -103,6 +113,8 @@ def compute_portfolio_volatility(
     var_p = float(w_vec.T.dot(cov_matrix.values).dot(w_vec))
     return np.sqrt(var_p)
 
+@log_error_handling("high")
+@log_performance(1.0)
 def compute_risk_contributions(
     weights: Dict[str, float],
     cov_matrix: pd.DataFrame
@@ -168,6 +180,8 @@ def compute_herfindahl(
 
 from typing import Any
 
+@log_error_handling("high")
+@log_performance(1.0)
 def compute_portfolio_variance_breakdown(
     weights: Dict[str, float],
     idio_var_dict: Dict[str, float],
@@ -363,6 +377,10 @@ def compute_target_allocations(
     df["Eq Diff"] = df["Portfolio Weight"] - df["Equal Weight"]
     return df
     
+@log_error_handling("high")
+@log_portfolio_operation_decorator("portfolio_analysis")
+@log_cache_operations("portfolio_analysis")
+@log_performance(3.0)
 def build_portfolio_view(
     weights: Dict[str, float],
     start_date: str,
@@ -391,6 +409,10 @@ def build_portfolio_view(
         weights_json, start_date, end_date, expected_returns_json, stock_factor_proxies_json
     )
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("portfolio_view_computation")
+@log_cache_operations("portfolio_computation")
+@log_performance(5.0)
 def _build_portfolio_view_computation(
     weights: Dict[str, float],
     start_date: str,

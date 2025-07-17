@@ -9,6 +9,13 @@
 from data_loader import fetch_monthly_close
 from factor_utils import calc_monthly_returns
 
+# Import logging decorators for risk helper functions
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling
+)
+
 
 # In[ ]:
 
@@ -16,6 +23,9 @@ from factor_utils import calc_monthly_returns
 from typing import Dict, Union, List
 import pandas as pd
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("risk_calculation")
+@log_performance(2.0)
 def get_worst_monthly_factor_losses(
     stock_factor_proxies: Dict[str, Dict[str, Union[str, List[str]]]],
     start_date: str,
@@ -165,6 +175,9 @@ from datetime import datetime
 import yaml
 import pandas as pd
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("max_beta_calculation")
+@log_performance(5.0)
 def calc_max_factor_betas(
     portfolio_yaml: str = "portfolio.yaml",
     risk_yaml: str = "risk_limits.yaml",

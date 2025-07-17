@@ -13,6 +13,14 @@ import hashlib
 import pandas as pd
 from pandas.errors import EmptyDataError, ParserError
 
+# Add logging decorator imports
+from utils.logging import (
+    log_cache_operations,
+    log_performance,
+    log_api_health,
+    log_error_handling
+)
+
 # ── internals ──────────────────────────────────────────────────────────
 def _hash(parts: Iterable[str | int | float]) -> str:
     key = "_".join(str(p) for p in parts if p is not None)
@@ -29,6 +37,8 @@ def _safe_load(path: Path) -> Optional[pd.DataFrame]:
         return None
 
 # ── public API ────────────────────────────────────────────────────────
+@log_cache_operations("general")
+@log_performance(0.1)
 def cache_read(
     *,
     key: Iterable[str | int | float],
@@ -73,6 +83,8 @@ def cache_read(
     return obj
 
 
+@log_cache_operations("general")
+@log_performance(0.1)
 def cache_write(
     obj: Union[pd.Series, pd.DataFrame],
     *,
@@ -122,6 +134,10 @@ API_KEY  = FMP_API_KEY
 BASE_URL = "https://financialmodelingprep.com/stable"
 
 
+@log_error_handling("high")
+@log_api_health("FMP_API", "stock_prices")
+@log_cache_operations("stock_data")
+@log_performance(1.0)
 def fetch_monthly_close(
     ticker: str,
     start_date: Optional[Union[str, datetime]] = None,
@@ -153,28 +169,30 @@ def fetch_monthly_close(
             params["to"]   = pd.to_datetime(end_date).date().isoformat()
     
         # LOGGING: Add FMP API call logging with timing and rate limiting
-        # start_time = time.time()
-        # log_api_request("FMP_API", "historical-price-eod", params, start_time)
+        import time
+        from utils.logging import log_rate_limit_hit, log_service_health, log_critical_alert
+        start_time = time.time()
         
         resp = requests.get(f"{BASE_URL}/historical-price-eod/full", params=params, timeout=30)
         
         # LOGGING: Add rate limit detection for FMP API
-        # if resp.status_code == 429:
-        #     log_rate_limit_hit(None, "historical-price-eod", "api_calls", None, "free")
-        #     log_service_health("FMP_API", "degraded", time.time() - start_time, {"error": "rate_limited", "status_code": 429})
+        if resp.status_code == 429:
+            log_rate_limit_hit(None, "historical-price-eod", "api_calls", None, "free")
+            log_service_health("FMP_API", "degraded", time.time() - start_time, {"error": "rate_limited", "status_code": 429})
         
-        resp.raise_for_status()
-        
-        # LOGGING: Add service health monitoring for FMP API connection
-        # response_time = time.time() - start_time
-        # log_service_health("FMP_API", "healthy", response_time, user_id=None)
-        # log_api_request("FMP_API", "historical-price-eod", params, start_time, response_time=response_time, success=True)
-        
-        # LOGGING: Add FMP API response processing logging
-        # log_portfolio_operation("fetch_monthly_close", "api_response_processing", execution_time=response_time, details={"ticker": ticker, "status_code": resp.status_code})
-        
-        # LOGGING: Add critical alert for FMP API connection failure (if exception occurs)
-        # log_critical_alert("api_connection_failure", "high", f"FMP API connection failed for {ticker}", "Retry with exponential backoff", details={"symbol": ticker, "endpoint": "historical-price-eod"})
+        try:
+            resp.raise_for_status()
+            
+            # LOGGING: Add service health monitoring for FMP API connection (success case)
+            response_time = time.time() - start_time
+            log_service_health("FMP_API", "healthy", response_time, user_id=None)
+            
+        except requests.exceptions.HTTPError as e:
+            # LOGGING: Add critical alert for FMP API connection failure
+            response_time = time.time() - start_time
+            log_critical_alert("api_connection_failure", "high", f"FMP API connection failed for {ticker}", "Retry with exponential backoff", details={"symbol": ticker, "endpoint": "historical-price-eod", "status_code": resp.status_code})
+            log_service_health("FMP_API", "down", response_time, {"error": str(e), "status_code": resp.status_code})
+            raise
         
         raw  = resp.json()
         data = raw if isinstance(raw, list) else raw.get("historical", [])
@@ -198,6 +216,10 @@ def fetch_monthly_close(
     )
 
 
+@log_error_handling("high")
+@log_api_health("FMP_API", "treasury_rates")
+@log_cache_operations("treasury_data")
+@log_performance(1.0)
 def fetch_monthly_treasury_rates(
     maturity: str = "month3",
     start_date: Optional[Union[str, datetime]] = None,
@@ -229,25 +251,30 @@ def fetch_monthly_treasury_rates(
             params["to"] = pd.to_datetime(end_date).date().isoformat()
         
         # LOGGING: Add FMP API call logging for treasury rates
-        # start_time = time.time()
-        # log_api_request("FMP_API", "treasury-rates", params, start_time)
+        import time
+        from utils.logging import log_rate_limit_hit, log_service_health, log_critical_alert
+        start_time = time.time()
         
         resp = requests.get(f"{BASE_URL}/treasury-rates", params=params, timeout=30)
         
         # LOGGING: Add rate limit detection for treasury rates endpoint
-        # if resp.status_code == 429:
-        #     log_rate_limit_hit(None, "treasury-rates", "api_calls", None, "free")
-        #     log_service_health("FMP_API", "degraded", time.time() - start_time, {"error": "rate_limited", "endpoint": "treasury-rates"})
+        if resp.status_code == 429:
+            log_rate_limit_hit(None, "treasury-rates", "api_calls", None, "free")
+            log_service_health("FMP_API", "degraded", time.time() - start_time, {"error": "rate_limited", "endpoint": "treasury-rates"})
         
-        resp.raise_for_status()
-        
-        # LOGGING: Add service health monitoring for treasury rates API
-        # response_time = time.time() - start_time
-        # log_service_health("FMP_API", "healthy", response_time, user_id=None)
-        # log_api_request("FMP_API", "treasury-rates", params, start_time, response_time=response_time, success=True)
-        
-        # LOGGING: Add critical alert for treasury rates API failure (if exception occurs)
-        # log_critical_alert("api_connection_failure", "high", f"FMP Treasury rates API failed for {maturity}", "Retry with exponential backoff", details={"maturity": maturity, "endpoint": "treasury-rates"})
+        try:
+            resp.raise_for_status()
+            
+            # LOGGING: Add service health monitoring for treasury rates API (success case)
+            response_time = time.time() - start_time
+            log_service_health("FMP_API", "healthy", response_time, user_id=None)
+            
+        except requests.exceptions.HTTPError as e:
+            # LOGGING: Add critical alert for treasury rates API failure
+            response_time = time.time() - start_time
+            log_critical_alert("api_connection_failure", "high", f"FMP Treasury rates API failed for {maturity}", "Retry with exponential backoff", details={"maturity": maturity, "endpoint": "treasury-rates", "status_code": resp.status_code})
+            log_service_health("FMP_API", "down", response_time, {"error": str(e), "status_code": resp.status_code})
+            raise
         
         raw = resp.json()
         
@@ -260,7 +287,7 @@ def fetch_monthly_treasury_rates(
         if maturity not in df.columns:
             available = list(df.columns)
             # LOGGING: Add critical alert for invalid maturity
-            # log_critical_alert("invalid_treasury_maturity", "medium", f"Treasury maturity '{maturity}' not available", "Use valid maturity from available options", details={"maturity": maturity, "available": available})
+            log_critical_alert("invalid_treasury_maturity", "medium", f"Treasury maturity '{maturity}' not available", "Use valid maturity from available options", details={"maturity": maturity, "available": available})
             raise ValueError(f"Maturity '{maturity}' not available. Available: {available}")
         
         # Sort by date (API already filtered by date range)

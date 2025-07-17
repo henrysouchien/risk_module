@@ -38,6 +38,17 @@ from portfolio_risk import (
     build_portfolio_view  # if reused, or remove if it's redefined in this file
 )
 
+# Import logging decorators for portfolio risk operations
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling,
+    log_api_health,
+    log_cache_operations,
+    log_critical_alert,
+    log_service_health
+)
+
 
 # In[ ]:
 
@@ -47,17 +58,33 @@ from portfolio_risk import (
 from typing import Dict, Callable, Union
 
 # Auto-detect cash positions from database (with YAML fallback)
+@log_error_handling("medium")
+@log_portfolio_operation_decorator("cash_positions_detection")
+@log_performance(1.0)
 def get_cash_positions():
     # LOGGING: Add cash position detection logging with data source and timing
     # LOGGING: Add resource usage monitoring for cache initialization here
     # LOGGING: Add critical alert for database connection failures here
+    import time
+    start_time = time.time()
+    
     try:
         # Try database first
         from inputs.database_client import DatabaseClient
         db_client = DatabaseClient()
         cash_map = db_client.get_cash_mappings()
+        
+        # Log successful database connection
+        response_time = time.time() - start_time
+        log_service_health("PostgreSQL", "healthy", response_time, user_id=None)
+        
         return set(cash_map.get("proxy_by_currency", {}).values())
     except Exception as e:
+        # LOGGING: Add critical alert for database connection failures
+        response_time = time.time() - start_time
+        log_critical_alert("database_connection_failure", "high", f"Database connection failed for cash positions", "Check database connectivity and credentials", details={"error": str(e), "operation": "get_cash_mappings"})
+        log_service_health("PostgreSQL", "down", response_time, {"error": str(e)})
+        
         # Fallback to YAML
         print(f"⚠️ Database unavailable ({e}), using cash_map.yaml fallback")
         try:
@@ -71,6 +98,9 @@ def get_cash_positions():
 
 cash_positions = get_cash_positions()
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("portfolio_standardization")
+@log_performance(2.0)
 def standardize_portfolio_input(
     raw_input: Dict[str, Dict[str, Union[float, int]]],
     price_fetcher: Callable[[str], float]
@@ -167,6 +197,9 @@ def standardize_portfolio_input(
 
 # File: run_portfolio_risk.py
 
+@log_error_handling("high")
+@log_api_health("FMP_API", "latest_price")
+@log_performance(1.0)
 def latest_price(ticker: str) -> float:
     """
     Fetches the latest available month-end closing price for a given ticker.
@@ -192,6 +225,9 @@ from typing import Dict, Callable, Optional, Any
 # --------------------------------------------------------------------
 # 1) Pure-data loader  → returns a dict you can reuse programmatically
 # --------------------------------------------------------------------
+@log_error_handling("high")
+@log_portfolio_operation_decorator("config_loading")
+@log_performance(0.5)
 def load_portfolio_config(
     filepath: str = "portfolio.yaml",
     price_fetcher: Callable[[str], float] | None = None,
@@ -225,6 +261,9 @@ def load_portfolio_config(
 # --------------------------------------------------------------------
 # 2) Pretty-printer  → consumes the dict returned by loader
 # --------------------------------------------------------------------
+@log_error_handling("low")
+@log_portfolio_operation_decorator("portfolio_config_display")
+@log_performance(0.5)
 def display_portfolio_config(cfg: Dict[str, Any]) -> None:
     """
     Nicely print the fields produced by load_portfolio_config().
@@ -323,6 +362,9 @@ def load_and_display_portfolio_config(
 
 # File: run_portfolio_risk.py
 
+@log_error_handling("low")
+@log_portfolio_operation_decorator("portfolio_summary_display")
+@log_performance(0.5)
 def display_portfolio_summary(summary: dict):
     print("\n=== Target Allocations ===")
     print(summary["allocations"], "\n")
@@ -403,6 +445,9 @@ def display_portfolio_summary(summary: dict):
 import pandas as pd
 from typing import Dict, Optional
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("beta_limits_evaluation")
+@log_performance(1.0)
 def evaluate_portfolio_beta_limits(
     portfolio_factor_betas: pd.Series,
     max_betas: Dict[str, float],
@@ -475,6 +520,9 @@ def evaluate_portfolio_beta_limits(
 from typing import Dict, Any
 import pandas as pd
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("risk_limits_evaluation")
+@log_performance(1.0)
 def evaluate_portfolio_risk_limits(
     summary: Dict[str, Any],
     portfolio_limits: Dict[str, float],
@@ -558,6 +606,9 @@ def evaluate_portfolio_risk_limits(
 
 # File: run_portfolio_risk.py
 
+@log_error_handling("low")
+@log_portfolio_operation_decorator("performance_metrics_display")
+@log_performance(0.5)
 def display_portfolio_performance_metrics(performance_metrics: Dict[str, Any]) -> None:
     """
     Display portfolio performance metrics in a formatted, professional layout.

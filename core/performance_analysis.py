@@ -17,7 +17,17 @@ from run_portfolio_risk import (
 from portfolio_risk import calculate_portfolio_performance_metrics
 from utils.serialization import make_json_safe
 
+# Import logging decorators for performance analysis
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling
+)
 
+
+@log_error_handling("high")
+@log_portfolio_operation_decorator("performance_analysis")
+@log_performance(5.0)
 def analyze_performance(filepath: str) -> Dict[str, Any]:
     """
     Core portfolio performance analysis business logic.

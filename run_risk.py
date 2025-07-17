@@ -160,6 +160,9 @@ def run_and_interpret(portfolio_yaml: str, *, return_data: bool = False):
 # ============================================================================
 # This handles AI interpretation of structured portfolio output
 # ============================================================================
+@log_error_handling("high")
+@log_portfolio_operation_decorator("ai_interpretation")
+@log_performance(3.0)
 def interpret_portfolio_output(portfolio_output: Dict[str, Any], *, 
                               portfolio_name: Optional[str] = None,
                               return_data: bool = False):
@@ -210,6 +213,13 @@ def interpret_portfolio_output(portfolio_output: Dict[str, Any], *,
 # ============================================================================
 # CORE BUSINESS LOGIC
 # ============================================================================
+
+# Import logging decorators for portfolio analysis
+from utils.logging import log_portfolio_operation_decorator, log_performance, log_error_handling
+
+@log_error_handling("high")
+@log_portfolio_operation_decorator("portfolio_analysis")
+@log_performance(5.0)
 def run_portfolio(filepath: str, *, return_data: bool = False):
     """
     High-level "one-click" entry-point for a full portfolio risk run.
@@ -724,6 +734,9 @@ def run_stock(
 # PERFORMANCE ANALYSIS
 # This handles portfolio performance calculation and analysis
 # ============================================================================
+@log_error_handling("high")
+@log_portfolio_operation_decorator("portfolio_performance")
+@log_performance(5.0)
 def run_portfolio_performance(filepath: str, *, return_data: bool = False):
     """
     Calculate and display comprehensive portfolio performance metrics.

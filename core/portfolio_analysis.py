@@ -21,7 +21,17 @@ from portfolio_risk import build_portfolio_view
 from risk_helpers import calc_max_factor_betas
 from settings import PORTFOLIO_DEFAULTS
 
+# Add logging decorator imports
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling
+)
 
+
+@log_error_handling("high")
+@log_portfolio_operation_decorator("portfolio_analysis")
+@log_performance(3.0)
 def analyze_portfolio(filepath: str) -> Dict[str, Any]:
     """
     Core portfolio analysis business logic.

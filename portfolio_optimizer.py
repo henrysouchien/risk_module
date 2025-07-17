@@ -25,6 +25,14 @@ from risk_helpers import (
 
 from helpers_display import _drop_factors
 
+# Add logging decorator imports
+from utils.logging import (
+    log_workflow_state_decorator,
+    log_resource_usage_decorator,
+    log_performance,
+    log_error_handling
+)
+
 
 # In[17]:
 
@@ -46,6 +54,8 @@ solve_min_variance_with_risk_limits(weights, risk_cfg, start, end, proxies)
 """
 
 # ────────────────────────────────────────────────────────────────────────────
+@log_error_handling("medium")
+@log_performance(5.0)
 def simulate_portfolio_change(
     weights: Dict[str, float],
     edits: Dict[str, float],
@@ -96,6 +106,10 @@ def simulate_portfolio_change(
 
 
 # ────────────────────────────────────────────────────────────────────────────
+@log_error_handling("high")
+@log_workflow_state_decorator("portfolio_optimization")
+@log_resource_usage_decorator(monitor_memory=True, monitor_cpu=True)
+@log_performance(10.0)
 def solve_min_variance_with_risk_limits(
     weights: Dict[str, float],
     risk_cfg: Dict[str, Any],
@@ -660,6 +674,10 @@ def run_what_if_scenario(
 from typing import Dict, Any
 import pandas as pd
 
+@log_error_handling("high")
+@log_workflow_state_decorator("minimum_variance_optimization")
+@log_resource_usage_decorator(monitor_memory=True, monitor_cpu=True)
+@log_performance(10.0)
 def run_min_var_optimiser(
     weights: Dict[str, float],
     risk_cfg: Dict[str, Any],

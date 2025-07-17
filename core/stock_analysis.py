@@ -16,7 +16,16 @@ from risk_summary import (
 )
 from utils.serialization import make_json_safe
 
+# Import logging decorators for stock analysis
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling
+)
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("stock_analysis")
+@log_performance(3.0)
 def analyze_stock(
     ticker: str,
     start: Optional[str] = None,

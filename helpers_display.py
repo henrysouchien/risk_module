@@ -6,6 +6,13 @@
 
 import pandas as pd   
 
+# Import logging decorators for display operations
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling
+)
+
 
 # In[4]:
 
@@ -14,6 +21,9 @@ import pandas as pd
 
 EXCLUDE_FACTORS = {"industry"}          # extend if you need to hide more later
 
+@log_error_handling("low")
+@log_portfolio_operation_decorator("display_drop_factors")
+@log_performance(0.1)
 def _drop_factors(df: pd.DataFrame) -> pd.DataFrame:
     """
     Remove presentation-only factor rows (case / whitespace agnostic).
@@ -35,6 +45,9 @@ def _drop_factors(df: pd.DataFrame) -> pd.DataFrame:
 
 # ─── File: helpers_display.py ──────────────────────────────────────────
 
+@log_error_handling("low")
+@log_portfolio_operation_decorator("display_print_single_portfolio")
+@log_performance(0.2)
 def _print_single_portfolio(risk_df, beta_df, title: str = "What-if") -> None:
     """
     Pretty-print risk-limit and factor-beta tables for a *single* portfolio
@@ -93,10 +106,16 @@ def _print_single_portfolio(risk_df, beta_df, title: str = "What-if") -> None:
 
 import pandas as pd
 
+@log_error_handling("low")
+@log_portfolio_operation_decorator("display_format_percentage")
+@log_performance(0.05)
 def _fmt_pct(x: float) -> str:
     return f"{x:.1%}"
 
 # ────────────────────────────────────────────────────────────────────
+@log_error_handling("medium")
+@log_portfolio_operation_decorator("display_compare_risk_tables")
+@log_performance(0.3)
 def compare_risk_tables(old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
     """Side-by-side diff for the risk-limit checker."""
     left  = old.rename(columns={"Actual": "Old",  "Pass": "Old Pass"})
@@ -109,6 +128,9 @@ def compare_risk_tables(old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
     return out
 
 # ────────────────────────────────────────────────────────────────────
+@log_error_handling("medium")
+@log_portfolio_operation_decorator("display_compare_beta_tables")
+@log_performance(0.3)
 def compare_beta_tables(old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
     """
     Diff for the factor-beta checker.
@@ -161,6 +183,9 @@ def compare_beta_tables(old: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
 
 from typing import Dict, Union
 
+@log_error_handling("low")
+@log_portfolio_operation_decorator("display_format_stock_metrics")
+@log_performance(0.1)
 def format_stock_metrics(metrics_dict: Dict[str, Union[float, int]], title: str) -> None:
     """
     Format stock analysis metrics dictionary into readable output.

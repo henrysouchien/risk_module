@@ -24,6 +24,16 @@ import yaml
 from pathlib import Path
 from typing import Dict, Tuple, Optional
 
+# Import logging decorators for input validation and parsing
+from utils.logging import (
+    log_error_handling,
+    log_performance,
+    log_portfolio_operation_decorator
+)
+
+@log_error_handling("medium")
+@log_portfolio_operation_decorator("input_parse_shift")
+@log_performance(0.1)
 def _parse_shift(txt: str) -> float:
     """
     Convert a human-friendly shift string to decimal.
@@ -38,6 +48,9 @@ def _parse_shift(txt: str) -> float:
         return float(t.rstrip("ps").rstrip("bp")) / 10_000
     return float(t)                       # already decimal
 
+@log_error_handling("medium")
+@log_portfolio_operation_decorator("input_parse_delta")
+@log_performance(0.5)
 def parse_delta(
     yaml_path: Optional[str] = None,
     literal_shift: Optional[Dict[str, str]] = None,

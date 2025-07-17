@@ -19,6 +19,14 @@ import os
 # Load .env file before accessing environment variables
 load_dotenv()
 
+# Import logging decorators for factor analysis
+from utils.logging import (
+    log_portfolio_operation_decorator,
+    log_performance,
+    log_error_handling,
+    log_api_health
+)
+
 # Configuration
 FMP_API_KEY = os.getenv("FMP_API_KEY")
 API_KEY  = FMP_API_KEY
@@ -82,6 +90,9 @@ def compute_regression_metrics(df: pd.DataFrame) -> Dict[str, float]:
     }
 
 
+@log_error_handling("high")
+@log_api_health("FMP_API", "peer_data")
+@log_performance(3.0)
 def fetch_peer_median_monthly_returns(
     tickers: List[str],
     start_date: Optional[Union[str, datetime]] = None,
@@ -134,6 +145,9 @@ def fetch_excess_return(
 
     return etf_aligned - market_aligned
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("factor_metrics")
+@log_performance(2.0)
 def compute_factor_metrics(
     stock_returns: pd.Series,
     factor_dict: Dict[str, pd.Series]
@@ -195,6 +209,9 @@ def compute_factor_metrics(
 import pandas as pd
 from typing import Dict
 
+@log_error_handling("high")
+@log_portfolio_operation_decorator("factor_beta_calculation")
+@log_performance(5.0)
 def compute_stock_factor_betas(
     stock_ret: pd.Series,
     factor_rets: Dict[str, pd.Series]
