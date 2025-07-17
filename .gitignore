@@ -58,6 +58,11 @@ completed/
 error_logs/
 *.sh
 E2E_TESTING_GUIDE.md
+tests/
+*.json
+node_modules/
+*.backup
+test-results/
 
 # Plaid integration development files
 *plaid_loader*

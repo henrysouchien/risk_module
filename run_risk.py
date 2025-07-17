@@ -48,6 +48,13 @@ from gpt_helpers import (
 from helpers_display import format_stock_metrics
 from utils.serialization import make_json_safe, _format_portfolio_output_as_text
 from core.portfolio_analysis import analyze_portfolio
+
+# Import logging decorators
+from utils.logging import (
+    log_error_handling,
+    log_portfolio_operation_decorator,
+    log_performance
+)
 from core.scenario_analysis import analyze_scenario
 from core.optimization import optimize_min_variance, optimize_max_return
 from core.stock_analysis import analyze_stock
@@ -214,8 +221,7 @@ def interpret_portfolio_output(portfolio_output: Dict[str, Any], *,
 # CORE BUSINESS LOGIC
 # ============================================================================
 
-# Import logging decorators for portfolio analysis
-from utils.logging import log_portfolio_operation_decorator, log_performance, log_error_handling
+# Import logging decorators for portfolio analysis (imported at top of file)
 
 @log_error_handling("high")
 @log_portfolio_operation_decorator("portfolio_analysis")

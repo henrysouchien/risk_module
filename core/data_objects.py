@@ -507,6 +507,7 @@ class PortfolioData:
     @classmethod
     def from_holdings(cls, holdings: Dict[str, Union[float, Dict]], 
                      start_date: str, end_date: str,
+                     portfolio_name: str,
                      expected_returns: Optional[Dict[str, float]] = None,
                      stock_factor_proxies: Optional[Dict[str, str]] = None) -> 'PortfolioData':
         """
@@ -516,6 +517,7 @@ class PortfolioData:
             holdings (Dict[str, Union[float, Dict]]): Portfolio allocation in any supported format
             start_date (str): Analysis start date in YYYY-MM-DD format
             end_date (str): Analysis end date in YYYY-MM-DD format
+            portfolio_name (str): Name of the portfolio for database storage
             expected_returns (Optional[Dict[str, float]]): Expected return forecasts for optimization
             stock_factor_proxies (Optional[Dict[str, str]]): Factor proxy mappings for analysis
             
@@ -528,7 +530,8 @@ class PortfolioData:
             start_date=start_date,
             end_date=end_date,
             expected_returns=expected_returns or {},
-            stock_factor_proxies=stock_factor_proxies or {}
+            stock_factor_proxies=stock_factor_proxies or {},
+            portfolio_name=portfolio_name
         )
     
     def to_yaml(self, output_path: str) -> None:
