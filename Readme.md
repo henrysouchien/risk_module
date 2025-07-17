@@ -312,6 +312,130 @@ cd tests && python3 test_fallback_mechanisms.py     # Fallback tests
 - **[architecture.md](architecture.md)** - Complete architectural documentation  
 - **[run_risk.py](run_risk.py)** - See module docstring for dual-mode pattern details
 
+## 🌐 Frontend-to-Backend API Mapping
+
+**React Frontend Components → Backend API Endpoints**
+
+This comprehensive mapping shows how each frontend component connects to specific backend API endpoints:
+
+### **Authentication Flow**
+| Frontend Component | Backend API Endpoint | HTTP Method | Purpose |
+|-------------------|---------------------|-------------|---------|
+| `GoogleSignInButton` | `/auth/google` | POST | Google OAuth authentication |
+| `LandingPage` | `/auth/status` | GET | Check authentication status |
+| App component | `/auth/logout` | POST | User logout |
+
+### **Portfolio Management**
+| Frontend Component | Backend API Endpoint | HTTP Method | Purpose |
+|-------------------|---------------------|-------------|---------|
+| `PortfolioHoldings` | `/api/analyze` | POST | Portfolio upload and analysis |
+| `RiskScoreDisplay` | `/api/risk-score` | POST | Risk score calculation and display |
+| `TabbedPortfolioAnalysis` | `/api/portfolio-analysis` | POST | Comprehensive portfolio analysis |
+
+### **Plaid Integration**
+| Frontend Component | Backend API Endpoint | HTTP Method | Purpose |
+|-------------------|---------------------|-------------|---------|
+| `PlaidLinkButton` | `/plaid/create_link_token` | POST | Create Plaid link token |
+| `PlaidLinkButton` | `/plaid/exchange_public_token` | POST | Exchange public token |
+| `ConnectedAccounts` | `/plaid/connections` | GET | List connected accounts |
+| `PlaidPortfolioHoldings` | `/plaid/holdings` | GET | Retrieve portfolio holdings |
+
+### **AI Chat Integration**
+| Frontend Component | Backend API Endpoint | HTTP Method | Purpose |
+|-------------------|---------------------|-------------|---------|
+| `chat/ChatInterface` | `/api/claude_chat` | POST | Claude AI conversations |
+| `chat/ChatInterface` | `/api/claude_context` | GET | Get chat context |
+
+### **Core API Service Layer**
+The `APIService` class in `frontend/src/chassis/services/APIService.ts` provides centralized API access with these key methods:
+
+```typescript
+// Authentication APIs
+checkAuthStatus(): GET /auth/status
+googleAuth(token): POST /auth/google
+logout(): POST /auth/logout
+
+// Portfolio Analysis APIs
+analyzePortfolio(data): POST /api/analyze
+getRiskScore(): POST /api/risk-score
+getPortfolioAnalysis(): POST /api/portfolio-analysis
+
+// Plaid Integration APIs
+getConnections(): GET /plaid/connections
+createLinkToken(userId): POST /plaid/create_link_token
+exchangePublicToken(token): POST /plaid/exchange_public_token
+getPlaidHoldings(): GET /plaid/holdings
+
+// AI Chat APIs
+claudeChat(message, history): POST /api/claude_chat
+```
+
+### **Data Flow Architecture**
+
+**Frontend → Backend Request Flow:**
+```
+React Component → APIService → Flask Route → Core Business Logic → Database/Files
+```
+
+**Backend → Frontend Response Flow:**
+```
+Database/Files → Core Business Logic → Flask Route → APIService → React Component
+```
+
+### **Response Format Standards**
+
+**All API endpoints return consistent JSON format:**
+```json
+{
+  "success": true,
+  "data": {
+    // Structured analysis data
+  },
+  "formatted_report": "Human-readable formatted output",
+  "summary": {
+    // Key metrics summary
+  },
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+**Error Response Format:**
+```json
+{
+  "success": false,
+  "error": "Error message",
+  "error_type": "validation_error|server_error|auth_error",
+  "timestamp": "2024-01-01T12:00:00Z"
+}
+```
+
+### **Frontend State Management**
+
+**React Hooks for API Integration:**
+- `useAuth()` - Authentication state and API calls
+- `usePortfolio()` - Portfolio analysis and risk scoring
+- `usePlaid()` - Plaid integration and holdings management
+- `useChat()` - Claude AI chat functionality
+
+**Key State Patterns:**
+- Loading states for all API calls
+- Error handling with user-friendly messages
+- Automatic retry logic for failed requests
+- Optimistic updates for better UX
+
+### **Rate Limiting & Authentication**
+
+**API Key Tiers:**
+- **Public**: Limited access (5 requests/day)
+- **Registered**: Enhanced access (15 requests/day) 
+- **Paid**: Full access (30 requests/day)
+
+**Frontend Authentication Flow:**
+1. User signs in with Google OAuth
+2. Frontend receives JWT token
+3. Token included in all API requests
+4. Backend validates token and applies rate limits
+
 ## 🌐 Interface Layer
 
 For web interface, REST API, and Claude AI chat integration, see:
