@@ -1622,3 +1622,185 @@ class InterpretationResult:
             self.analysis_metadata.get("analysis_date", "")
         )
         return hash(key_data) 
+
+
+@dataclass
+class DirectPortfolioResult:
+    """Result object for direct portfolio analysis endpoints.
+    
+    Provides consistent serialization with service layer endpoints by wrapping
+    raw output from run_portfolio() function and applying standard JSON conversion.
+    """
+    raw_output: Dict[str, Any]
+    analysis_type: str = "portfolio"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary using standard service layer serialization."""
+        return {
+            "analysis_type": self.analysis_type,
+            "volatility_annual": self.raw_output.get('volatility_annual'),
+            "portfolio_factor_betas": _convert_to_json_serializable(
+                self.raw_output.get('portfolio_factor_betas')
+            ),
+            "risk_contributions": _convert_to_json_serializable(
+                self.raw_output.get('risk_contributions')
+            ),
+            "df_stock_betas": _convert_to_json_serializable(
+                self.raw_output.get('df_stock_betas')
+            ),
+            "covariance_matrix": _convert_to_json_serializable(
+                self.raw_output.get('covariance_matrix')
+            ),
+            **{k: _convert_to_json_serializable(v) 
+               for k, v in self.raw_output.items()}
+        }
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """Get summary using standard formatting."""
+        return {
+            "endpoint": "direct/portfolio",
+            "analysis_type": self.analysis_type,
+            "volatility_annual": self.raw_output.get('volatility_annual'),
+            "total_positions": len(self.raw_output.get('risk_contributions', {})),
+            "data_quality": "direct_access"
+        }
+
+
+@dataclass  
+class DirectStockResult:
+    """Result object for direct stock analysis endpoints."""
+    raw_output: Dict[str, Any]
+    analysis_type: str = "stock"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary using standard service layer serialization."""
+        return {
+            "analysis_type": self.analysis_type,
+            **{k: _convert_to_json_serializable(v) 
+               for k, v in self.raw_output.items()}
+        }
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """Get summary using standard formatting."""
+        return {
+            "endpoint": "direct/stock",
+            "analysis_type": self.analysis_type,
+            "data_quality": "direct_access"
+        }
+
+
+@dataclass
+class DirectOptimizationResult:
+    """Result object for direct optimization endpoints."""
+    raw_output: Dict[str, Any]
+    analysis_type: str = "optimization"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary using standard service layer serialization."""
+        return {
+            "analysis_type": self.analysis_type,
+            "optimal_weights": _convert_to_json_serializable(
+                self.raw_output.get('optimal_weights')
+            ),
+            "optimization_metrics": _convert_to_json_serializable(
+                self.raw_output.get('optimization_metrics')
+            ),
+            **{k: _convert_to_json_serializable(v) 
+               for k, v in self.raw_output.items()}
+        }
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """Get summary using standard formatting."""
+        return {
+            "endpoint": "direct/optimization",
+            "analysis_type": self.analysis_type,
+            "data_quality": "direct_access"
+        }
+
+
+@dataclass
+class DirectPerformanceResult:
+    """Result object for direct performance analysis endpoints."""
+    raw_output: Dict[str, Any]
+    analysis_type: str = "performance"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary using standard service layer serialization."""
+        return {
+            "analysis_type": self.analysis_type,
+            "performance_metrics": _convert_to_json_serializable(
+                self.raw_output.get('performance_metrics')
+            ),
+            **{k: _convert_to_json_serializable(v) 
+               for k, v in self.raw_output.items()}
+        }
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """Get summary using standard formatting."""
+        return {
+            "endpoint": "direct/performance", 
+            "analysis_type": self.analysis_type,
+            "data_quality": "direct_access"
+        } 
+
+
+@dataclass
+class DirectWhatIfResult:
+    """Result object for direct what-if analysis endpoints."""
+    raw_output: Dict[str, Any]
+    analysis_type: str = "what_if"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary using standard service layer serialization."""
+        return {
+            "analysis_type": self.analysis_type,
+            "current_scenario": _convert_to_json_serializable(
+                self.raw_output.get('current_scenario')
+            ),
+            "what_if_scenario": _convert_to_json_serializable(
+                self.raw_output.get('what_if_scenario')
+            ),
+            "comparison_metrics": _convert_to_json_serializable(
+                self.raw_output.get('comparison_metrics')
+            ),
+            **{k: _convert_to_json_serializable(v) 
+               for k, v in self.raw_output.items()}
+        }
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """Get summary using standard formatting."""
+        return {
+            "endpoint": "direct/what-if",
+            "analysis_type": self.analysis_type,
+            "data_quality": "direct_access"
+        }
+
+
+@dataclass
+class DirectInterpretResult:
+    """Result object for direct interpretation endpoints."""
+    raw_output: Dict[str, Any]
+    analysis_type: str = "interpret"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary using standard service layer serialization."""
+        return {
+            "analysis_type": self.analysis_type,
+            "ai_interpretation": self.raw_output.get('ai_interpretation', ''),
+            "full_diagnostics": self.raw_output.get('full_diagnostics', ''),
+            "analysis_metadata": _convert_to_json_serializable(
+                self.raw_output.get('analysis_metadata', {})
+            ),
+            **{k: _convert_to_json_serializable(v) 
+               for k, v in self.raw_output.items()}
+        }
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """Get summary using standard formatting."""
+        return {
+            "endpoint": "direct/interpret",
+            "analysis_type": self.analysis_type,
+            "interpretation_length": len(self.raw_output.get('ai_interpretation', '')),
+            "diagnostics_length": len(self.raw_output.get('full_diagnostics', '')),
+            "data_quality": "direct_access"
+        } 

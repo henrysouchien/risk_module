@@ -312,6 +312,247 @@ cd tests && python3 test_fallback_mechanisms.py     # Fallback tests
 - **[architecture.md](architecture.md)** - Complete architectural documentation  
 - **[run_risk.py](run_risk.py)** - See module docstring for dual-mode pattern details
 
+## 📊 Production Logging Infrastructure
+
+**Comprehensive monitoring and observability system with zero-impact decorator-based logging**
+
+### **Environment-Based Configuration**
+
+The logging system automatically adapts to your environment:
+
+```python
+# Production (performance-optimized)
+PRODUCTION_LEVELS = {
+    "database": logging.ERROR,      # Only log database errors
+    "portfolio": logging.WARNING,   # Only log portfolio issues
+    "performance": logging.WARNING  # Only log slow operations (>1s)
+}
+
+# Development (verbose logging)
+DEVELOPMENT_LEVELS = {
+    "database": logging.DEBUG,      # All database operations
+    "portfolio": logging.INFO,      # All portfolio operations  
+    "performance": logging.INFO     # All performance metrics
+}
+```
+
+Set environment with: `export ENVIRONMENT=production` or `export ENVIRONMENT=development`
+
+### **Six Specialized Loggers**
+
+**1. Database Logger** (`database.log`)
+- SQL queries with parameters and timing
+- Connection pool health monitoring
+- Transaction rollback tracking
+- User isolation validation
+
+**2. Portfolio Logger** (`portfolio.log`)
+- Portfolio operations and analysis timing
+- Risk calculation workflow tracking
+- User portfolio access patterns
+- Cache hit/miss analysis
+
+**3. API Logger** (`api.log`)
+- HTTP request/response timing
+- Rate limiting and authentication events
+- External service health monitoring (FMP API, Plaid)
+- Error categorization with severity levels
+
+**4. Performance Logger** (`performance.log`)
+- Function execution timing with thresholds
+- Memory and CPU usage monitoring
+- Slow operation detection and alerting
+- Resource usage trend analysis
+
+**5. Claude Logger** (`claude.log`)
+- AI integration calls and token usage
+- GPT response timing and success rates
+- Conversation context and workflow tracking
+- AI function execution monitoring
+
+**6. Schema Logger** (`schema.log`)
+- Database schema validation results
+- Migration success/failure tracking
+- Data integrity checks
+- Reference data synchronization
+
+### **Decorator-Based Logging System**
+
+**Zero-impact logging** that wraps existing functions without changing business logic:
+
+```python
+# Portfolio business operations (67 usages across codebase)
+@log_portfolio_operation_decorator("risk_calculation")
+@log_performance(2.0)  # Log if takes longer than 2 seconds  
+@log_error_handling("high")
+def calculate_portfolio_risk(portfolio_data):
+    # ... original function code unchanged ...
+    pass
+
+# API endpoint monitoring
+@log_portfolio_operation_decorator("api_portfolio_analysis")
+@log_performance(5.0)
+@log_error_handling("high")
+def api_analyze_portfolio():
+    # ... original function code unchanged ...
+    pass
+
+# Advanced monitoring with resource tracking
+@log_workflow_state_decorator("portfolio_optimization")
+@log_resource_usage_decorator(monitor_memory=True, monitor_cpu=True)
+@log_performance(10.0)
+def optimize_portfolio(constraints):
+    # ... original function code unchanged ...
+    pass
+```
+
+### **Available Decorators**
+
+| Decorator | Purpose | Usage Count | Example |
+|-----------|---------|-------------|---------|
+| `@log_portfolio_operation_decorator()` | Business operations | 67 | `@log_portfolio_operation_decorator("risk_calculation")` |
+| `@log_performance()` | Execution timing | 57 | `@log_performance(2.0)` |
+| `@log_error_handling()` | Error tracking | 81 | `@log_error_handling("high")` |
+| `@log_api_health()` | External API monitoring | - | `@log_api_health("FMP_API", "stock_prices")` |
+| `@log_cache_operations()` | Cache hit/miss tracking | - | `@log_cache_operations("stock_data")` |
+| `@log_workflow_state_decorator()` | Multi-step workflows | - | `@log_workflow_state_decorator("optimization")` |
+| `@log_resource_usage_decorator()` | Memory/CPU monitoring | - | `@log_resource_usage_decorator(monitor_memory=True)` |
+
+### **Dual Output Format**
+
+**Human-Readable Console Logs:**
+```
+2025-07-18 10:51:29,760 - api - INFO - GET stock_prices - 200 (64.9ms)
+2025-07-18 10:51:29,760 - api - INFO - 🟢 FMP_API: healthy (64.9ms)
+2025-07-18 10:47:53,546 - api - WARNING - ⚠️  MEDIUM ALERT: cache_operation_failed
+2025-07-18 10:47:53,548 - api - ERROR - ⚠️  HIGH ALERT: function_error
+```
+
+**Structured JSON Logs:**
+```json
+{
+  "timestamp": "2025-07-18T10:41:59.190223+00:00",
+  "operation": "portfolio_analysis",
+  "user_id": 123,
+  "execution_time_ms": 2450.5,
+  "portfolio_details": {
+    "positions": 8,
+    "total_value": 125000,
+    "file_path": "portfolio.yaml",
+    "analysis_type": "risk_calculation",
+    "function_file": "run_risk.py"
+  }
+}
+```
+
+### **Log File Organization**
+
+**Text Logs** (Human-readable):
+```
+error_logs/
+├── api.log              # API requests and responses
+├── portfolio.log        # Portfolio operations  
+├── performance.log      # Performance metrics
+├── database.log         # Database operations
+├── claude.log           # AI integration
+└── schema.log           # Schema validation
+```
+
+**JSON Logs** (Structured data):
+```
+error_logs/
+├── portfolio_operations_2025-07-18.json    # Daily portfolio logs
+├── performance_metrics_2025-07-18.json     # Daily performance logs
+├── api_requests_2025-07-18.json            # Daily API logs
+├── service_health_2025-07-18.json          # Daily service health
+├── critical_alerts_2025-07-18.json         # Daily alerts
+├── auth_events_2025-07-18.json             # Daily auth events
+├── sql_queries_2025-07-18.json             # Daily database queries
+└── resource_usage_2025-07-18.json          # Daily resource usage
+```
+
+### **Key Features**
+
+**Production-Ready:**
+- **Performance Thresholds**: Only logs slow operations in production
+- **Privacy Protection**: User emails never logged (uses anonymous user IDs)
+- **Automatic File Rotation**: Daily log files with date-based naming
+- **Error Categorization**: Critical/High/Medium/Low severity levels
+
+**Comprehensive Monitoring:**
+- **Real-time Performance Tracking**: Function execution timing
+- **External Service Health**: FMP API, Plaid, database monitoring
+- **Resource Usage**: Memory and CPU monitoring
+- **Multi-step Workflows**: Complete audit trail
+- **Cache Analysis**: Hit/miss ratios and performance
+
+**Developer-Friendly:**
+- **Zero Code Changes**: Decorator-based with no business logic modification
+- **Automatic Context**: Function names, file paths, arguments extracted
+- **Stack Traces**: Full error context with recovery suggestions
+- **Visual Indicators**: Emojis and status indicators for quick scanning
+
+### **Usage Examples**
+
+**Basic Function Logging:**
+```python
+from utils.logging import log_portfolio_operation_decorator, log_performance
+
+@log_portfolio_operation_decorator("risk_calculation")
+@log_performance(2.0)
+def calculate_risk(portfolio_data):
+    # Your existing code unchanged
+    return risk_metrics
+```
+
+**Advanced Monitoring:**
+```python
+from utils.logging import (
+    log_portfolio_operation_decorator, 
+    log_performance, 
+    log_error_handling,
+    log_resource_usage_decorator
+)
+
+@log_error_handling("high")
+@log_resource_usage_decorator(monitor_memory=True, monitor_cpu=True)
+@log_performance(10.0)
+def expensive_optimization(constraints):
+    # Your existing code unchanged
+    return optimized_portfolio
+```
+
+**API Health Monitoring:**
+```python
+from utils.logging import log_api_health, log_cache_operations
+
+@log_api_health("FMP_API", "stock_prices")
+@log_cache_operations("stock_data")
+def fetch_stock_data(ticker):
+    # Your existing code unchanged
+    return stock_data
+```
+
+### **Benefits for Operations**
+
+**Debugging & Troubleshooting:**
+- Complete audit trail of all operations
+- Performance bottleneck identification
+- Error pattern analysis with full context
+- User flow tracking for issue reproduction
+
+**Performance Optimization:**
+- Automatic slow operation detection
+- Resource usage trend analysis
+- Cache efficiency monitoring
+- Database query performance tracking
+
+**Production Monitoring:**
+- Service health dashboards
+- Alert system for critical issues
+- User behavior analytics
+- System resource planning
+
 ## 🌐 Frontend-to-Backend API Mapping
 
 **React Frontend Components → Backend API Endpoints**

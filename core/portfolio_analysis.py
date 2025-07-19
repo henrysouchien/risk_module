@@ -109,9 +109,9 @@ def analyze_portfolio(filepath: str) -> Dict[str, Any]:
             }
         },
         "beta_analysis": {
-            "beta_checks": df_beta.to_dict('records'),
+            "beta_checks": df_beta.reset_index().to_dict('records'),
             "beta_passes": bool(df_beta['pass'].all()),
-            "beta_violations": df_beta[~df_beta['pass']].to_dict('records'),
+            "beta_violations": df_beta[~df_beta['pass']].reset_index().to_dict('records'),
             "max_betas": max_betas,
             "max_betas_by_proxy": max_betas_by_proxy
         },

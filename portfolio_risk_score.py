@@ -1231,11 +1231,6 @@ def run_risk_score_analysis(portfolio_yaml: str = "portfolio.yaml", risk_yaml: s
         standardized = standardize_portfolio_input(raw_weights, latest_price)
         weights = standardized["weights"]
         
-        print(f"Portfolio summary:")
-        print(f"  Total value: ${standardized['total_value']:,.2f}")
-        print(f"  Net exposure: {standardized['net_exposure']:.3f}")
-        print(f"  Leverage: {standardized['leverage']:.2f}x")
-        
         # Build portfolio view with standardized weights
         summary = build_portfolio_view(
             weights=weights,

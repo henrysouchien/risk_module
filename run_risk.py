@@ -338,7 +338,8 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
 
             # Display Beta Limits
             print("\n=== Beta Exposure Checks ===")
-            for factor, row in df_beta.iterrows():
+            for _, row in df_beta.iterrows():
+                factor = row['factor']  # Factor names are now in 'factor' column
                 status = "→ PASS" if row["pass"] else "→ FAIL"
                 print(f"{factor:<20} β = {row['portfolio_beta']:+.2f}  ≤ {row['max_allowed_beta']:.2f}  {status}")
         
@@ -356,9 +357,9 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
                 }
             },
             "beta_analysis": {
-                "beta_checks": df_beta.to_dict('records'),
+                "beta_checks": df_beta.reset_index().to_dict('records'),
                 "beta_passes": bool(df_beta['pass'].all()),
-                "beta_violations": df_beta[~df_beta['pass']].to_dict('records'),
+                "beta_violations": df_beta[~df_beta['pass']].reset_index().to_dict('records'),
                 "max_betas": max_betas,
                 "max_betas_by_proxy": max_betas_by_proxy
             },
@@ -388,7 +389,8 @@ def run_portfolio(filepath: str, *, return_data: bool = False):
 
         # Display Beta Limits
         print("\n=== Beta Exposure Checks ===")
-        for factor, row in df_beta.iterrows():
+        for _, row in df_beta.iterrows():
+            factor = row['factor']  # Factor names are now in 'factor' column
             status = "→ PASS" if row["pass"] else "→ FAIL"
             print(f"{factor:<20} β = {row['portfolio_beta']:+.2f}  ≤ {row['max_allowed_beta']:.2f}  {status}")
 
